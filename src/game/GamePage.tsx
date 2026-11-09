@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUpRightIcon, CheckIcon, MapTrifoldIcon } from '../components/icons';
+import { CheckIcon, MapTrifoldIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import { websiteHref } from '../data/deployment';
 import { display } from '../data/display-copy';
@@ -9,7 +9,7 @@ import { getSpot, methodLabels, type StampSpot, stampSpots } from '../data/stamp
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type GameState, savedTime, useAccount } from './api';
 import { StampReveal } from './StampReveal';
-import { type Claim, isStandalone, readClaim, stamps } from './stamp-store';
+import { type Claim, readClaim } from './stamp-store';
 import '../styles/pages.css';
 import './game.css';
 
@@ -106,7 +106,6 @@ function Challenge({
 export default function GamePage() {
   useDocumentTitle(display.pages.game);
   const [params, setParams] = useSearchParams();
-  const [standalone] = useState(isStandalone);
   const account = useAccount();
   const [active, setActive] = useState<Claim | null>(null);
   const [revealed, setRevealed] = useState<StampSpot | null>(null);
@@ -115,20 +114,10 @@ export default function GamePage() {
   const [notice, setNotice] = useState('');
   const [error, setError] = useState('');
   useEffect(() => {
-    if (!standalone) return;
-    const claim = readClaim(params) ?? stamps.pending();
+    const claim = readClaim(params);
     if (claim) setActive(claim);
-  }, [params, standalone]);
+  }, [params]);
 
-  if (!standalone)
-    return (
-      <Page title={display.pages.game} lede="實景集章只在安裝到主畫面的松櫻祭 App 裡進行。">
-        <Link className="button" to={`/play?${params}`}>
-          看安裝說明
-          <ArrowUpRightIcon size={16} aria-hidden="true" />
-        </Link>
-      </Page>
-    );
   const state = account.data;
   const spot = getSpot(active?.spot ?? null);
   const collected = state?.stamps ?? {};
@@ -219,7 +208,6 @@ export default function GamePage() {
                           });
                       account.setData(updated);
                       setActive(null);
-                      stamps.setPending(null);
                       setParams({}, { replace: true });
                       if (updated.stamps[spot.id]) setRevealed(spot);
                       else setNotice('照片已送出，審核通過後才會集章。請稍後更新紀錄。');

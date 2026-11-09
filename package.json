@@ -1,11 +1,11 @@
 {
-  "name": "songying-festival-pwa",
+  "name": "songying-festival-game",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1",
-    "build": "tsc --noEmit && vite build && node scripts/build-sw.mjs",
+    "build": "tsc --noEmit && vite build",
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

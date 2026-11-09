@@ -70,7 +70,7 @@ implemented with GSAP. 最新消息 and 來訪須知 remain as footer pages. See
 
 **Amended 2026-10-16 (site plan 「松櫻季官網規劃」).** The site splits into two parts on one
 origin: the official site (static reading, no login) and the 大地遊戲 實景集章, which runs
-only in the installed PWA (`/game`, gated on `display-mode: standalone`). The site adds
+on the game website's root `/` in any browser (web only since 2026-11-09; no install). The site adds
 `/play` (install guide, planned sign-in methods, photo privacy), `/partners`, `/donate`
 (no channel yet; no account numbers are published) and, on About, purpose, sustainability
 (campus wood, tentative) and a second-edition timeline. QR codes point at

@@ -9,21 +9,21 @@ function render(url: string) {
     <MemoryRouter initialEntries={[url]}>
       <Routes>
         <Route path="/play" element={<PlayPage />} />
-        <Route path="/game" element={<GamePage />} />
+        <Route path="/" element={<GamePage />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
 describe('game app', () => {
-  for (const path of ['/play', '/game']) {
+  for (const path of ['/play', '/']) {
     it(`${path} has an accessible page landmark and heading`, () => {
       const html = render(path);
       expect(html.match(/<main /g)).toHaveLength(1);
       expect(html.match(/<h1/g)).toHaveLength(1);
     });
   }
-  it('preserves the scanned claim in the install guide', () => {
+  it('preserves the scanned claim in the guide', () => {
     const html = render('/play?spot=lake&k=lake-26').replaceAll('<!-- -->', '');
     expect(html).toContain('待驗證集章點「中大湖」');
     expect(html).toContain('LAKE-26');
@@ -32,7 +32,7 @@ describe('game app', () => {
   it('does not treat a QR handoff as server validation', () => {
     expect(render('/play?spot=lake&k=GATE-26')).toContain('待驗證');
   });
-  it('keeps the game in the installed app', () => {
-    expect(render('/game')).toContain('只在安裝到主畫面');
+  it('opens the stamp book in a normal browser tab', () => {
+    expect(render('/')).not.toContain('安裝');
   });
 });

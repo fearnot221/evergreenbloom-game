@@ -27,6 +27,7 @@ main:focus {
 .header-bar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: var(--space-6);
   height: var(--header-h);
   padding: 0 var(--gutter);
@@ -286,17 +287,15 @@ main:focus {
   }
 }
 
+/* Wide screens navigate from the header; phones use the bottom tab bar (same breakpoint). */
 @media (min-width: 960px) {
-  .menu-button {
+  .menu-button,
+  .quick-nav {
     display: inline-flex;
   }
 }
 
 @media (min-width: 1240px) {
-  .quick-nav {
-    display: inline-flex;
-  }
-
   .quick-nav + .header-tools {
     margin-left: var(--space-3);
   }
@@ -546,7 +545,7 @@ main:focus {
   inset: auto 0 0;
   z-index: var(--z-tabbar);
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   padding-bottom: env(safe-area-inset-bottom);
   border-top: 1px solid var(--line-strong);
   background: var(--glass);
@@ -673,10 +672,6 @@ body:has(.tab-bar) {
 
 .footer-app[open] summary svg {
   transform: rotate(180deg);
-}
-
-.footer-app .pwa-panel {
-  padding-bottom: var(--space-5);
 }
 
 /* 緞帶: the closing band, full width, set larger than the inner-page ribbons. */

@@ -1,6 +1,6 @@
 # 松櫻祭 · 集章 PWA
 
-獨立於 [官網](https://github.com/fearnot221/evergreenbloom) 的集章服務。
+獨立於 [官網](https://github.com/fearnot221/evergreenbloom-website) 的集章服務。
 只有一份部署設定：**docker-compose.yml**。一個 Node 24 容器同時提供前端與 API，
 使用內建 SQLite，資料庫及待審照片保存在 named volume game-data。
 沒有額外的 Compose profile、override、資料庫服務或套件依賴。
@@ -79,6 +79,9 @@ SSO 尚未串接，沒有自助找回密碼或 email 流程。未來 SSO 必須�
 主辦單位確認；目前只有「集滿全部章、每帳號一次」的一種兌獎規則。
 
 ## 資料保存與備份
+
+從舊 evergreenbloom-pwa 資料夾搬遷且已有資料時，在本機 .env 設定
+COMPOSE_PROJECT_NAME=evergreenbloom-pwa，讓 Compose 繼續使用原本的 volume。
 
 docker compose down 不刪除 named volume；重新建立容器仍保留帳號、章與兌獎紀錄。
 **不要執行 docker compose down -v**，那會刪除資料。

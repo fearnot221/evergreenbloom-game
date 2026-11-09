@@ -147,8 +147,8 @@ and performance. Record consequential design decisions in the appropriate doc.
 
 ## Game repository boundary (2026-10-17)
 
-This is `fearnot221/evergreenbloom-pwa`, the Docker-deployed game only. The public
-website and map are in `fearnot221/evergreenbloom`. Do not restore website routes
+This is `fearnot221/evergreenbloom-game`, the Docker-deployed game only. The public
+website and map are in `fearnot221/evergreenbloom-website`. Do not restore website routes
 or GitHub Pages deployment here. Run `npm run check` (Biome, TypeScript, Vitest),
 `npm run build` and Docker smoke tests for deployment changes. Geo tests belong to
 the website repository. Earlier combined-app inventories are historical.

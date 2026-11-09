@@ -27,7 +27,7 @@ describe('game app', () => {
     const html = render('/play?spot=lake&k=lake-26').replaceAll('<!-- -->', '');
     expect(html).toContain('待驗證集章點「中大湖」');
     expect(html).toContain('LAKE-26');
-    expect(html).toContain('https://fearnot221.github.io/evergreenbloom/map');
+    expect(html).toContain('https://fearnot221.github.io/evergreenbloom-website/map');
   });
   it('does not treat a QR handoff as server validation', () => {
     expect(render('/play?spot=lake&k=GATE-26')).toContain('待驗證');

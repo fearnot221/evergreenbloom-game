@@ -3,7 +3,7 @@ WORKDIR /app
 COPY package*.json ./
 RUN npm ci
 COPY . .
-ARG VITE_WEBSITE_URL=https://fearnot221.github.io/evergreenbloom/
+ARG VITE_WEBSITE_URL=https://fearnot221.github.io/evergreenbloom-website/
 ENV VITE_WEBSITE_URL=$VITE_WEBSITE_URL
 RUN npm run check && npm run build
 

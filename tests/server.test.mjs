@@ -107,10 +107,9 @@ test('one Compose file, no secondary deployment configs or public station secret
   );
   const client = await readFile('src/data/stamps.ts', 'utf8');
   assert.doesNotMatch(client, /\bkey:|\banswer:/);
-  assert.match(
-    await readFile('scripts/sw-template.js', 'utf8'),
-    /url.pathname.startsWith\('\/api\/'\)/,
-  );
+  // The site is web-only: public/sw.js only retires the former PWA worker and never
+  // intercepts requests.
+  assert.doesNotMatch(await readFile('public/sw.js', 'utf8'), /'fetch'/);
 });
 
 test('login binds server progress to a player, logout revokes the session, role cannot be self-selected', async (t) => {

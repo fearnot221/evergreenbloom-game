@@ -1,54 +1,13 @@
-import { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Ink } from '../components/Ink';
-import { ArrowUpRightIcon, ExportIcon, PlusSquareIcon } from '../components/icons';
+import { ArrowUpRightIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import { websiteHref } from '../data/deployment';
 import { display } from '../data/display-copy';
 import { getSpot, methodLabels, stampSpots } from '../data/stamps';
-import { isStandalone, readClaim, stamps } from '../game/stamp-store';
+import { readClaim } from '../game/stamp-store';
 import { gsap, MOTION, stamp, useGSAP } from '../motion/gsap';
-import { useInstallPrompt } from '../pwa/PwaPanel';
 import '../styles/pages.css';
-
-/**
- * Point the install at `/game?spot=…` so the app opens on the stamp just scanned.
- * iOS keeps home-screen storage apart from Safari, so the URL is the only carrier there.
- */
-function useInstallStartUrl(startUrl: string | null) {
-  useEffect(() => {
-    const link = document.querySelector<HTMLLinkElement>('link[rel="manifest"]');
-    if (!startUrl || !link) return;
-    const original = link.href;
-    let blob = '';
-    let cancelled = false;
-    const abs = (url: string) => new URL(url, location.origin).href;
-    fetch(original)
-      .then((response) => response.json())
-      .then((manifest) => {
-        // Left the page (or the claim changed) before the fetch came back: do nothing.
-        if (cancelled) return;
-        // A blob manifest resolves relative URLs against itself, so make them absolute.
-        manifest.id = abs(manifest.id);
-        manifest.scope = abs(manifest.scope);
-        manifest.start_url = abs(startUrl);
-        for (const item of [...manifest.icons, ...manifest.shortcuts]) {
-          if (item.src) item.src = abs(item.src);
-          if (item.url) item.url = abs(item.url);
-        }
-        blob = URL.createObjectURL(
-          new Blob([JSON.stringify(manifest)], { type: 'application/manifest+json' }),
-        );
-        link.href = blob;
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-      link.href = original;
-      if (blob) URL.revokeObjectURL(blob);
-    };
-  }, [startUrl]);
-}
 
 const methods = [
   {
@@ -72,66 +31,27 @@ export default function PlayPage() {
   const [params] = useSearchParams();
   const claim = readClaim(params);
   const spot = getSpot(claim?.spot ?? null);
-  const [standalone] = useState(isStandalone);
-  const install = useInstallPrompt();
-
-  // Android and desktop share storage with the installed app; keep the claim for it.
-  useEffect(() => {
-    const saved = readClaim(params);
-    if (saved) stamps.setPending(saved);
-  }, [params]);
-  useInstallStartUrl(claim ? `/game?spot=${claim.spot}&k=${claim.key}` : null);
 
   return (
     <Page
       title={display.pages.play}
-      lede="第二屆的大地遊戲是走遍校園的實景集章。集章只在安裝到手機主畫面的松櫻祭 App 裡進行；這一頁說明怎麼安裝與開始。"
+      lede="第二屆的大地遊戲是走遍校園的實景集章。用手機瀏覽器打開集章冊、登入帳號就能開始；這一頁說明怎麼集章。"
       className="play"
     >
       {spot && claim && (
         <section className="claim" aria-labelledby="claim-title">
           <h2 id="claim-title">待驗證集章點「{spot.name}」</h2>
           <p>
-            這只是待驗證的掃碼資訊；登入後由伺服器確認代碼與任務。安裝後打開
-            App，這個集章點會自動帶入。如果沒有出現，在集章冊輸入代碼{' '}
+            這只是待驗證的掃碼資訊；登入後由伺服器確認代碼與任務。如果集章冊沒有自動帶入，輸入代碼{' '}
             <strong className="latin">{claim.key}</strong>。
           </p>
         </section>
       )}
 
-      {standalone ? (
-        <Link className="button" to="/game">
-          打開集章冊
-          <ArrowUpRightIcon size={16} weight="bold" aria-hidden="true" />
-        </Link>
-      ) : (
-        <section aria-labelledby="install-title">
-          <h2 className="display section-title" id="install-title" data-ink>
-            <Ink text={display.sections.install} />
-          </h2>
-          <ol className="rows install-steps">
-            <li>
-              <h3>iPhone、iPad</h3>
-              <p>
-                用 Safari 開啟本頁，點分享
-                <ExportIcon size={18} aria-label="分享圖示" />
-                ，選「加入主畫面」
-                <PlusSquareIcon size={18} aria-label="加入主畫面圖示" />
-                ，再從主畫面打開松櫻祭。
-              </p>
-            </li>
-            <li>
-              <h3>Android</h3>
-              <p>用 Chrome 開啟本頁，點右上選單，選「安裝應用程式」或「加到主畫面」。</p>
-            </li>
-          </ol>
-          {install && (
-            <button type="button" className="button" onClick={install}>
-              安裝松櫻祭 App
-            </button>
-          )}
-        </section>
-      )}
+      <Link className="button" to={claim ? `/?spot=${claim.spot}&k=${claim.key}` : '/'}>
+        打開集章冊
+        <ArrowUpRightIcon size={16} weight="bold" aria-hidden="true" />
+      </Link>
 
       <section aria-labelledby="how-title">
         <h2 className="display section-title" id="how-title" data-ink>

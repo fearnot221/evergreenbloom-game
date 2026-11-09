@@ -553,6 +553,17 @@ manual entry. Stamps live in localStorage (`src/game/stamp-store.ts`); keys are 
 the client, which is not tamper-proof and must move to the backend with SSO. The manifest
 `start_url` is now `/game`. Unverified: iOS Safari honouring the swapped manifest.
 
+**Web only (2026-11-09).** At the user's request the PWA was removed: no manifest, install
+prompt, offline save or standalone gate. The stamp book is a normal web page at `/` and
+`/stamp/:spot` hands the claim straight to it. `public/sw.js` is now only a retirement worker
+(deletes `songying-core-*` / `songying-shell-*` caches and unregisters; no fetch handler).
+The 2026-10-16 paragraph above and the manifest section below are historical.
+
+**App root (2026-11-09).** The stamp book moved to `/`. `/game` only redirects to `/` (keeping the query) for
+old installs and printed links. The layout is responsive: below 960px the navigation is the
+bottom tab bar, from 960px it is the header `.quick-nav` (shell.css); page CSS keeps its `vw`
+sizes and width media queries.
+
 ### Manifest and installation
 
 One app identity, manifest and service-worker scope cover all product routes.

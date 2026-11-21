@@ -1,16 +1,6 @@
 import { getSpot } from '../data/stamps';
 
-const PENDING = 'songying-pending-claim';
 export type Claim = { spot: string; key: string };
-
-export function isStandalone() {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    (navigator as Navigator & { standalone?: boolean }).standalone === true ||
-    (import.meta.env.DEV && new URLSearchParams(location.search).has('standalone'))
-  );
-}
 
 /** Only parse the handoff; the server alone decides whether this key is valid. */
 export function readClaim(params: URLSearchParams): Claim | null {
@@ -19,22 +9,24 @@ export function readClaim(params: URLSearchParams): Claim | null {
   return spot && key && /^[A-Z0-9-]{1,80}$/.test(key) ? { spot: spot.id, key } : null;
 }
 
-export const stamps = {
-  pending(): Claim | null {
+/**
+ * What a scanned QR code holds: a stamp link (`…/stamp/<spot>?k=<code>`, or any URL with
+ * spot and k), or a bare station code. Any host is accepted because only the spot and
+ * code are read and the server checks them; the app never navigates to the URL itself.
+ */
+export function readScan(text: string): { claim: Claim } | { code: string } | null {
+  const value = text.trim();
+  if (/^https?:\/\//i.test(value)) {
     try {
-      const value = JSON.parse(localStorage.getItem(PENDING) ?? '');
-      if (typeof value?.spot !== 'string' || typeof value?.key !== 'string') return null;
-      return readClaim(new URLSearchParams({ spot: value.spot, k: value.key }));
+      const url = new URL(value);
+      const params = new URLSearchParams(url.search);
+      const path = url.pathname.match(/\/stamp\/([a-z-]+)\/?$/);
+      if (path) params.set('spot', path[1]);
+      const claim = readClaim(params);
+      return claim ? { claim } : null;
     } catch {
       return null;
     }
-  },
-  setPending(claim: Claim | null) {
-    try {
-      if (claim) localStorage.setItem(PENDING, JSON.stringify(claim));
-      else localStorage.removeItem(PENDING);
-    } catch {
-      /* The printed code remains the fallback when storage is unavailable. */
-    }
-  },
-};
+  }
+  return /^[A-Za-z0-9-]{1,80}$/.test(value) ? { code: value.toUpperCase() } : null;
+}

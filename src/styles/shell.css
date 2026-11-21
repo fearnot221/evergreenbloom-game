@@ -1,246 +1,110 @@
-/* App shell: header, curtain menu, mobile tab bar, footer, route states. */
-.app {
-  position: relative;
-  isolation: isolate;
-  min-height: 100dvh;
-  display: flex;
-  flex-direction: column;
-}
+/* Shell: header and tab bar, the night-sky title band, the cream sheet, footer. */
 
-#route-stage {
-  flex: 1;
-}
-
-main:focus {
-  outline: none;
-}
-
-/* Header ------------------------------------------------------------------------------
-   A full-width bar. Open over the hero; after the first screen it takes the paper and a
-   hairline (.is-condensed, set by ShellMotion) and slides away while scrolling down. */
+/* Header: a band of the key visual's top sky ---------------------------------- */
 .app-header {
-  position: fixed;
-  inset: 0 0 auto;
-  z-index: var(--z-header);
-}
-
-.header-bar {
   display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-5);
   align-items: center;
-  gap: var(--space-6);
-  height: var(--header-h);
-  padding: 0 var(--gutter);
-  border-bottom: 1px solid transparent;
-  transition:
-    background-color var(--dur-panel) var(--ease-out),
-    border-color var(--dur-panel) var(--ease-out);
-}
-
-.app-header.is-condensed .header-bar,
-.app[data-route="page"] .header-bar {
-  border-bottom-color: var(--line-strong);
-  background: var(--glass);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-}
-
-/* Without ShellMotion (reduced motion) nothing condenses the bar, so it is always on. */
-@media (prefers-reduced-motion: reduce) {
-  .header-bar {
-    border-bottom-color: var(--line-strong);
-    background: var(--glass);
-  }
+  justify-content: space-between;
+  padding: max(var(--space-3), env(safe-area-inset-top))
+    max(var(--gutter), calc((100% - 64rem) / 2)) var(--space-3);
+  background: var(--night);
+  color: var(--on-sky);
 }
 
 .brand {
   display: inline-flex;
+  gap: var(--space-2);
   align-items: center;
-  gap: var(--space-3);
-  min-height: 48px;
+  min-height: 44px;
   text-decoration: none;
 }
 
-/* The emblem turns with scroll (ShellMotion) and blooms a little on hover. */
 .brand-emblem {
-  display: grid;
-  place-items: center;
-  width: 2.5rem;
-  aspect-ratio: 1;
-  transition: transform 520ms var(--ease-out);
-}
-
-.brand-emblem svg {
-  width: 100%;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .brand:hover .brand-emblem {
-    transform: scale(1.12);
-  }
+  inline-size: 2rem;
+  block-size: 2rem;
 }
 
 .brand-word {
-  font-size: 1.65rem;
-  line-height: 1;
-  color: var(--fg);
+  font-size: var(--step-2);
 }
 
-.header-status {
-  display: none;
-  align-items: center;
-  gap: var(--space-2);
-  font-size: var(--step--1);
-  font-weight: 700;
-  color: var(--fg-soft);
-  white-space: nowrap;
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
 }
 
-/* A real state indicator: the festival is in preparation. */
-.status-dot {
-  width: 0.5rem;
-  aspect-ratio: 1;
-  border-radius: 50%;
-  background: var(--accent);
-  box-shadow: 0 0 0 4px var(--accent-wash);
-}
-
-.quick-nav {
-  display: none;
-  align-items: center;
-  gap: var(--space-5);
-  margin-left: auto;
-}
-
-.quick-nav a {
-  position: relative;
+.app-nav a {
   display: inline-flex;
+  gap: var(--space-2);
   align-items: center;
-  min-height: 44px;
-  font-size: 0.95rem;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border-radius: 999px;
+  font-size: 0.9375rem;
   font-weight: 700;
   text-decoration: none;
-  white-space: nowrap;
+  transition: background-color var(--dur-quick) var(--ease-out);
 }
 
-/* Hover: a rose line draws in from the left and wipes out to the right; the current
-   page keeps its line. */
-.quick-nav a::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 8px;
-  height: 2px;
-  background: var(--accent);
-  transform: scaleX(0);
-  transform-origin: right;
-  transition: transform 420ms var(--ease-out);
+.app-nav a:hover {
+  background-color: rgb(253 248 234 / 0.14);
 }
 
-.quick-nav a[aria-current="page"]::after {
-  transform: scaleX(1);
+.app-nav a[aria-current="page"] {
+  background: var(--star);
+  color: var(--ink);
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .quick-nav a:hover::after {
-    transform: scaleX(1);
-    transform-origin: left;
+/* Phones: the installed app gets a bottom tab bar within thumb reach. */
+@media (max-width: 40rem) {
+  .app-nav {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 30;
+    display: grid;
+    /* As many equal columns as there are tabs (four, or five for staff). */
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    gap: 0;
+    padding: var(--space-2) var(--space-2) max(var(--space-2), env(safe-area-inset-bottom));
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
+    background: rgb(52 50 124);
+    box-shadow: 0 -0.5rem 1.5rem rgb(28 26 74 / 0.3);
   }
-}
 
-.header-tools {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-left: auto;
-}
-
-.round-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  border: 1px solid var(--line-strong);
-  background: transparent;
-  transition:
-    transform var(--dur-press) var(--ease-out),
-    background-color var(--dur-quick) ease;
-}
-
-.round-button[aria-expanded="true"] {
-  background: var(--fg);
-  color: var(--bg);
-}
-
-.menu-button {
-  display: none;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: 48px;
-  padding: 0 var(--space-5) 0 var(--space-4);
-  border: 0;
-  background: var(--fg);
-  color: var(--bg);
-  font-weight: 700;
-  transition: transform var(--dur-press) var(--ease-out);
-}
-
-.round-button:active,
-.menu-button:active {
-  transform: scale(0.96);
-}
-
-/* Two lines that become a cross on the close button. */
-.menu-lines {
-  position: relative;
-  width: 18px;
-  height: 8px;
-}
-
-.menu-lines::before,
-.menu-lines::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: 2px;
-  border-radius: 2px;
-  background: currentColor;
-  transition: transform 420ms var(--ease-out);
-}
-
-.menu-lines::before {
-  top: 0;
-}
-
-.menu-lines::after {
-  bottom: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .menu-button:not(.is-close):hover .menu-lines::before {
-    transform: translateX(4px);
+  .app-nav a {
+    flex-direction: column;
+    gap: 0.125rem;
+    justify-content: center;
+    min-height: 56px;
+    padding: 0.25rem;
+    border-radius: var(--radius-s);
+    font-size: 0.75rem;
+    line-height: 1.2;
   }
-}
 
-.menu-button.is-close .menu-lines::before {
-  transform: translateY(3px) rotate(45deg);
-}
-
-.menu-button.is-close .menu-lines::after {
-  transform: translateY(-3px) rotate(-45deg);
+  body .offline-pill {
+    bottom: calc(5rem + env(safe-area-inset-bottom));
+  }
 }
 
 .offline-pill {
-  display: inline-flex;
+  position: fixed;
+  inset: auto 0 max(var(--space-4), env(safe-area-inset-bottom));
+  z-index: 40;
+  display: flex;
+  gap: var(--space-2);
   align-items: center;
-  gap: var(--space-1);
-  min-height: 32px;
-  padding: 0 var(--space-3);
-  background: var(--accent-wash);
-  color: var(--accent);
-  font-size: var(--step--1);
+  width: fit-content;
+  margin: auto;
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--cream);
+  font-size: 0.875rem;
   font-weight: 700;
 }
 
@@ -248,508 +112,247 @@ main:focus {
   display: none;
 }
 
-.language-notice {
-  position: absolute;
-  top: calc(100% - var(--space-1));
-  right: var(--gutter);
+/* Title band: night sky, title on the left, a sakura bough from the top-right corner,
+   a cloud edge underneath. ------------------------------------------------------------ */
+.page:focus {
+  outline: none;
+}
+
+.page-head {
+  position: relative;
+  padding: clamp(1.75rem, 1rem + 3vw, 3.5rem) var(--gutter) 0;
+  /* The bough is cropped by the band, like a print trimmed at the edge. */
+  overflow: clip;
+  /* Retro print: uneven paper mottling, soft purple into lavender (grain: base.css).
+     The top layer holds the first 5rem at the header's exact colour, so the two meet
+     without an edge; the mottling and the diagonal fade in below it. */
+  background:
+    linear-gradient(180deg, var(--night), rgb(80 65 126 / 0) 5rem),
+    radial-gradient(60% 50% at 18% 30%, rgb(255 240 216 / 0.06), transparent 70%),
+    radial-gradient(45% 40% at 70% 85%, rgb(141 107 162 / 0.35), transparent 70%),
+    radial-gradient(30% 35% at 40% 75%, rgb(40 30 80 / 0.18), transparent 70%),
+    linear-gradient(170deg, var(--night), rgb(104 80 140) 60%, rgb(141 107 162));
+  color: var(--on-sky);
+}
+
+.head-inner {
+  position: relative;
+  z-index: 1;
   display: grid;
   gap: var(--space-3);
-  width: min(26rem, calc(100vw - 2 * var(--gutter)));
-  padding: var(--space-5);
-  background: var(--bg);
-  box-shadow: 0 0 0 1px var(--line);
-  font-family: var(--font-latin);
-  font-size: var(--step--1);
-  line-height: 1.6;
-  pointer-events: auto;
-  transform-origin: top right;
+  justify-items: start;
+  width: min(var(--sheet), 100%);
+  margin-inline: auto;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .language-notice {
-    transition:
-      opacity var(--dur-quick) var(--ease-out),
-      scale var(--dur-quick) var(--ease-out);
-  }
-
-  @starting-style {
-    .language-notice {
-      opacity: 0;
-      scale: 0.96;
-    }
-  }
+.head-eyebrow {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  color: var(--blush);
+  font-size: 0.875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-@media (min-width: 760px) {
-  .header-status {
-    display: inline-flex;
-  }
+.eyebrow-bloom {
+  inline-size: 1.1rem;
+  color: var(--blush);
 }
 
-@media (min-width: 960px) {
-  .menu-button {
-    display: inline-flex;
-  }
+.page-title {
+  max-width: 12em;
+  font-size: clamp(2.2rem, 1.4rem + 3.6vw, 4rem);
+  line-height: 1.1;
+  /* Cream into blush, the badge's paper meeting the sky. No faux-bold stroke: it
+     closes the counters of dense characters (集, 章, 冊) and fuses their strokes. */
+  background: linear-gradient(180deg, var(--cream) 35%, var(--blush));
+  background-clip: text;
+  color: transparent;
+  letter-spacing: 0.08em;
 }
 
-@media (min-width: 1240px) {
-  .quick-nav {
-    display: inline-flex;
-  }
-
-  .quick-nav + .header-tools {
-    margin-left: var(--space-3);
-  }
-
-  .header-status {
-    display: none;
-  }
+.page-title.is-plain {
+  font-weight: 900;
 }
 
-@media (min-width: 1440px) {
-  .header-status {
-    display: inline-flex;
-  }
+.page-lede {
+  max-width: 30em;
+  color: rgb(253 248 234 / 0.88);
 }
 
-/* Curtain menu ---------------------------------------------------------------------
-   A sakura curtain drops from the top edge (clip-path), links rise in sequence and a
-   plate beside them previews the destination under the pointer or focus. */
-.menu {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
+/* The sakura bough: as tall as the band, anchored top-right, trimmed by its edges. */
+.head-sakura {
+  position: absolute;
+  top: 0;
+  right: 0;
+  /* At least 28rem tall so the bough keeps its size on short bands; the cloud edge
+     and the band's clip trim the rest. */
+  block-size: max(100%, 28rem);
+  inline-size: auto;
+  aspect-ratio: 760 / 520;
   max-width: none;
-  height: 100dvh;
-  max-height: none;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: var(--sakura);
-  color: var(--fg);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  pointer-events: none;
 }
 
-.menu::backdrop {
-  background: transparent;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .menu {
-    transition:
-      clip-path 760ms var(--ease-in-out),
-      overlay 760ms allow-discrete,
-      display 760ms allow-discrete;
-    clip-path: inset(0 0 0 0);
+/* Phones: a smaller bough lifted into the top corner; the title starts below it. */
+@media (max-width: 40rem) {
+  .head-inner {
+    padding-top: 5.5rem;
   }
 
-  .menu:not([open]) {
-    clip-path: inset(0 0 100% 0);
-    transition-duration: 520ms;
+  /* The bough grows up through the header (only the logo sits there on phones), so
+     the band clips its sides and bottom but not its top. */
+  .page-head {
+    overflow: visible;
+    clip-path: inset(-20rem 0 0 0);
   }
 
-  @starting-style {
-    .menu[open] {
-      clip-path: inset(0 0 100% 0);
-    }
+  .head-sakura {
+    top: calc(-5rem - env(safe-area-inset-top));
+    right: -3.5rem;
+    block-size: auto;
+    inline-size: 21rem;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .menu {
-    transition:
-      opacity 150ms ease,
-      overlay 150ms allow-discrete,
-      display 150ms allow-discrete;
-  }
-
-  .menu:not([open]) {
-    opacity: 0;
-  }
-
-  @starting-style {
-    .menu[open] {
-      opacity: 0;
-    }
-  }
-}
-
-.menu-inner {
-  display: grid;
-  grid-template-rows: auto 1fr auto;
-  gap: var(--space-6);
-  min-height: 100dvh;
-  padding-block: var(--space-4) var(--space-6);
-}
-
-.menu-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  min-height: calc(var(--header-h) - var(--space-3));
-}
-
-.menu-head .header-status {
-  display: inline-flex;
-  color: var(--fg);
-}
-
-.menu-head .menu-button {
-  display: inline-flex;
-}
-
-.menu-nav {
-  display: grid;
-  align-content: center;
-}
-
-.menu-nav a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  padding-block: 0.1em;
-  border-bottom: 1px solid var(--line);
-  text-decoration: none;
-}
-
-.menu-label {
-  display: block;
-  /* Clip only vertically (the entrance mask); the hover nudge may run past the right. */
-  overflow-x: visible;
-  overflow-y: clip;
-  font-size: min(clamp(2rem, 1.1rem + 3.6vw, 4.4rem), 6.2dvh);
-  line-height: 1.25;
-}
-
-.menu-label > span {
-  display: block;
-  transition:
-    transform 520ms var(--ease-out),
-    color var(--dur-quick) ease;
-}
-
-.menu-arrow {
-  flex: none;
-  color: var(--accent);
-  opacity: 0;
-  transform: translate(-12px, 12px);
-  transition:
-    opacity var(--dur-quick) ease,
-    transform 420ms var(--ease-out);
-}
-
-.menu-nav a[aria-current="page"] .menu-label > span {
-  color: var(--accent);
-}
-
-.menu-nav a:focus-visible .menu-arrow,
-.menu-nav a[aria-current="page"] .menu-arrow {
-  opacity: 1;
-  transform: none;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .menu-nav a:hover .menu-label > span {
-    transform: translateX(0.4em);
-  }
-
-  .menu-nav a:hover .menu-arrow {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .menu[open] .menu-label > span {
-    animation: menu-rise 900ms var(--ease-out) both;
-    animation-delay: calc(240ms + var(--i) * 45ms);
-  }
-}
-
-@keyframes menu-rise {
-  from {
-    transform: translateY(110%);
-  }
-}
-
-.menu-preview {
-  display: none;
-}
-
-.menu-foot {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-}
-
-.menu-secondary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2) var(--space-5);
-}
-
-.menu-secondary a,
-.menu-offline {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  font-weight: 700;
-}
-
-@media (min-width: 1000px) {
-  .menu-inner {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
-    column-gap: var(--space-9);
-  }
-
-  .menu-head,
-  .menu-foot {
-    grid-column: 1 / -1;
-  }
-
-  .menu-preview {
-    display: grid;
-    align-items: center;
-    justify-items: end;
-    overflow: clip;
-  }
-
-  /* The destination's first character, as an outline drifting in on the wind. */
-  .menu-glyph {
-    font-size: min(36vw, 70dvh);
-    line-height: 1;
-    color: transparent;
-    -webkit-text-stroke: 2px var(--fg);
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    .menu-glyph {
-      animation: glyph-in 700ms var(--ease-out) both;
-    }
-  }
-}
-
-@keyframes glyph-in {
-  from {
-    opacity: 0;
-    transform: translateX(-6%);
-  }
-}
-
-/* Mobile tab bar ------------------------------------------------------------- */
-.tab-bar {
-  position: fixed;
-  inset: auto 0 0;
-  z-index: var(--z-tabbar);
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  padding-bottom: env(safe-area-inset-bottom);
-  border-top: 1px solid var(--line-strong);
-  background: var(--glass);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-}
-
-.tab-bar a,
-.tab-bar button {
-  display: grid;
-  justify-items: center;
-  gap: 2px;
+/* A row of cloud tops closing the band into the page's cloud ground. */
+.head-edge {
   position: relative;
-  min-height: 60px;
-  padding: var(--space-2) 0;
-  border: 0;
-  background: transparent;
-  color: var(--fg-soft);
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-decoration: none;
-  transition:
-    transform var(--dur-press) var(--ease-out),
-    background-color var(--dur-quick) ease,
-    opacity var(--dur-quick) ease;
+  z-index: 1;
+  display: flex;
+  justify-content: center;
+  margin: var(--space-6) calc(-1 * var(--gutter)) -1px;
 }
 
-.tab-bar a:active,
-.tab-bar button:active {
-  transform: scale(0.95);
+.head-edge > * {
+  flex: none;
+  inline-size: clamp(9rem, 6rem + 8vw, 15rem);
+  margin-inline-end: -2.5rem;
 }
 
-.tab-bar a[aria-current="page"] {
-  color: var(--fg);
+/* The sheet: cream paper with a dotted teal edge ------------------------------------ */
+.sheet {
+  position: relative;
+  display: grid;
+  gap: var(--space-6);
+  width: min(var(--sheet), 100% - 2 * var(--gutter));
+  margin: var(--space-5) auto 0;
+  padding: clamp(1.5rem, 1rem + 3vw, 3rem);
+  border-radius: var(--radius-l);
+  background: var(--surface);
+  box-shadow:
+    0 0 0 0.5rem rgb(255 255 255 / 0.22),
+    0 1.5rem 3rem rgb(120 50 90 / 0.25);
 }
 
-/* The current tab carries a rose rule on its top edge. */
-.tab-bar a[aria-current="page"]::before {
+.sheet::before {
   content: "";
   position: absolute;
-  inset: -1px 20% auto;
-  height: 3px;
-  background: var(--accent);
+  inset: 0.625rem;
+  border: 3px dotted var(--arch);
+  border-radius: calc(var(--radius-l) - 0.625rem);
+  pointer-events: none;
 }
 
-body:has(.tab-bar) {
-  padding-bottom: calc(60px + env(safe-area-inset-bottom));
+.sheet > section + section {
+  padding-top: var(--space-6);
+  border-top: 2px dashed var(--line);
 }
 
-@media (min-width: 960px) {
-  .tab-bar {
-    display: none;
-  }
-
-  body:has(.tab-bar) {
-    padding-bottom: 0;
-  }
+.sheet > .button {
+  justify-self: start;
 }
 
-/* Footer: a sakura field that closes on a viewport-wide wordmark. ------------------ */
+/* Footer: a cloud bank, then back to the night sky ------------------------------- */
 .app-footer {
   position: relative;
-  margin-top: var(--space-10);
-  padding-top: var(--space-9);
-  overflow: clip;
-  background: var(--sakura);
+  margin-top: var(--space-8);
+  padding-top: 4.5rem;
 }
 
-.footer-grid {
+.footer-art {
+  position: absolute;
+  inset: 0 0 auto;
+  block-size: 6.75rem;
+  pointer-events: none;
+}
+
+.footer-art > * {
+  position: absolute;
+  bottom: 0;
+  max-width: none;
+}
+
+.footer-cloud-1 {
+  left: -8%;
+  inline-size: max(16rem, 40%);
+}
+
+.footer-cloud-2 {
+  left: 28%;
+  bottom: 0.5rem;
+  inline-size: max(14rem, 36%);
+}
+
+.footer-cloud-3 {
+  right: -8%;
+  inline-size: max(16rem, 42%);
+}
+
+.footer-star {
+  top: 0;
+  bottom: auto;
+  right: 18%;
+  inline-size: 1.8rem;
+  color: var(--star);
+}
+
+.footer-body {
+  position: relative;
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-4);
+  justify-items: start;
+  padding: var(--space-7) max(var(--gutter), calc((100% - var(--sheet)) / 2))
+    max(var(--space-7), env(safe-area-inset-bottom));
+  /* In front of the clouds, so only their tops show above the rounded edge. */
+  border-radius: var(--radius-l) var(--radius-l) 0 0;
+  background: var(--night);
+  color: var(--on-sky);
 }
 
-.footer-statement {
-  font-size: var(--step-4);
-  line-height: 1.1;
+.footer-body .note,
+.footer-body .text-link {
+  color: var(--on-sky);
 }
 
-.footer-statement .line + .line {
-  padding-left: 1em;
-  color: var(--accent);
-}
-
-.footer-nav {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-  gap: 0 var(--space-6);
-  align-content: start;
-}
-
-.footer-nav a {
-  display: flex;
-  align-items: center;
-  min-height: 48px;
-  border-bottom: 1px solid var(--line-strong);
-  font-weight: 700;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.footer-app {
-  border-top: 1px solid var(--line-strong);
-  border-bottom: 1px solid var(--line-strong);
-}
-
-.footer-app summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  min-height: 56px;
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-}
-
-.footer-app summary::-webkit-details-marker {
-  display: none;
-}
-
-.footer-app summary svg {
-  transition: transform var(--dur-quick) var(--ease-out);
-}
-
-.footer-app[open] summary svg {
-  transform: rotate(180deg);
-}
-
-.footer-app .pwa-panel {
-  padding-bottom: var(--space-5);
-}
-
-/* 緞帶: the closing band, full width, set larger than the inner-page ribbons. */
-.footer-ribbon {
-  margin-top: var(--space-9);
-  height: clamp(10rem, 4rem + 16vw, 22rem);
-}
-
-.footer-ribbon .ribbon-line {
-  stroke: var(--fg);
-  stroke-width: 64;
-}
-
-.footer-ribbon .ribbon-text {
-  font-size: 42px;
-  fill: var(--sakura);
-}
-
-.footer-legal {
-  display: grid;
-  gap: var(--space-1);
-  padding-block: var(--space-5) var(--space-6);
-  border-top: 1px solid var(--line-strong);
-}
-
-.footer-legal .note {
-  color: var(--fg);
-}
-
-@media (min-width: 900px) {
-  .footer-grid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    align-items: start;
-  }
-
-  .footer-app {
-    grid-column: 2;
-  }
-}
-
-/* Route states ---------------------------------------------------------------- */
+/* First-load skeleton ------------------------------------------------------------ */
 .route-loading {
   display: grid;
   gap: var(--space-4);
-  padding-top: calc(var(--header-h) + var(--space-9));
+  width: min(var(--sheet), 100% - 2 * var(--gutter));
+  margin: var(--space-8) auto;
 }
 
 .skeleton {
-  background: var(--bg-2);
+  block-size: 1.25rem;
+  border-radius: 999px;
+  background: rgb(253 248 234 / 0.22);
 }
 
 .skeleton-title {
-  width: min(22rem, 70%);
-  height: 4rem;
-}
-
-.skeleton-line {
-  width: min(40rem, 100%);
-  height: 1.1rem;
+  block-size: 3rem;
+  inline-size: 50%;
 }
 
 .skeleton-line.short {
-  width: min(24rem, 60%);
+  inline-size: 60%;
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .skeleton {
-    animation: skeleton-pulse 1.4s ease-in-out infinite alternate;
-  }
-}
-
-@keyframes skeleton-pulse {
-  to {
-    opacity: 0.5;
+/* Phones: room for the tab bar, inside the purple footer, so nothing pink shows at the
+   bar's rounded corners. */
+@media (max-width: 40rem) {
+  .footer-body {
+    padding-bottom: calc(var(--space-7) + 4.5rem + env(safe-area-inset-bottom));
   }
 }

@@ -1,40 +1,38 @@
 /*
- * 松櫻祭 design tokens · v6 「櫻吹雪 · 一陣風」 (a gust of sakura), adopted 2026-10-17
- * Custom theme · paper: light blush · display: calligraphic kai (LXGW WenKai TC) at
- * poster scale · primary field: sakura pink · ink: pine green (松) · one hot rose for
- * small emphasis. Shape rule: everything is square-cornered; the only round things
- * are the petals and the 松櫻 emblem. No gradients. One theme, automatic night (夜櫻).
+ * 松櫻祭 集章 design tokens · v7 「星夜集章」, adopted 2026-11-09 from the official key
+ * visual (主視覺) and its five-colour card. The app lives in the key visual's dusk: a
+ * purple sky fading into pink clouds, with a cream hexagon badge, a teal arch and
+ * yellow stars. One theme; the sky is already the night.
+ *
+ * Key-visual palette (hex in the colour card, written as rgb here):
+ *   紫色天空 454596 · 粉色雲 f1a1ba · 櫻花(深) e97d9f · 櫻花(淺) faacaa · 星星 fff243
+ * Read from the key visual (not on the card): badge cream, arch teal, deep ink, the
+ * front-cloud ground and print grain. Its elements are redrawn one by one (motifs.tsx).
  */
 @font-face {
   font-family: "Songying Display";
   src: url("/fonts/songying-display.woff2") format("woff2");
-  font-weight: 700;
+  font-weight: 900;
   font-display: swap;
 }
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --font-display: "Songying Display", "LXGW WenKai TC", "Kaiti TC", "BiauKai", serif;
+  --font-display: "Songying Display", "Noto Sans TC", "PingFang TC", sans-serif;
   --font-body:
     "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, -apple-system, "Segoe UI",
     sans-serif;
-  --font-latin: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-latin: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif;
 
-  /* Type scale: body steps, then editorial display steps that track the viewport. */
   --step--1: 0.8125rem;
-  --step-0: 1.0625rem;
-  --step-1: clamp(1.15rem, 1.05rem + 0.4vw, 1.375rem);
-  --step-2: clamp(1.45rem, 1.2rem + 1vw, 2rem);
-  --step-3: clamp(2rem, 1.3rem + 2.8vw, 3.6rem);
-  --step-4: clamp(2.8rem, 1.4rem + 5.6vw, 6.4rem);
-  --step-5: clamp(4.6rem, 1rem + 15vw, 17rem);
+  --step-0: 1rem;
+  --step-1: clamp(1.125rem, 1.05rem + 0.3vw, 1.3rem);
+  --step-2: clamp(1.4rem, 1.2rem + 0.9vw, 1.85rem);
+  --step-3: clamp(1.9rem, 1.5rem + 2vw, 2.8rem);
+  --leading-display: 1.1;
+  --leading-body: 1.75;
 
-  --leading-display: 1.08;
-  --leading-body: 1.85;
-  --tracking-latin: 0.14em;
-
-  /* Space: 4pt scale; sections breathe at --space-10 and above. */
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
@@ -43,98 +41,53 @@
   --space-6: 2rem;
   --space-7: 3rem;
   --space-8: 4rem;
-  --space-9: 6rem;
-  --space-10: 9rem;
-  --space-11: 13rem;
-  --gutter: clamp(1.25rem, 0.4rem + 3.6vw, 4rem);
-  --content: 90rem;
-  --measure: 32em;
-  --header-h: 5rem;
+  --gutter: clamp(1rem, 0.6rem + 2vw, 2rem);
+  --sheet: 46rem;
 
-  /* Motion: GSAP uses power2/power3.out; CSS mirrors them. */
+  /* Shape: soft and sticker-like; the hexagon (from the key visual's badge) marks
+     stamps, steps and star-map nodes. */
+  --hex: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%);
+  /* Stamps are pine cones (松): overlapping scales and a stem as a mask, plus faint
+     scale lines laid over the fill. Drawn plump, in a 100 x 112 box. */
+  --cone: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 112'%3E%3Crect x='45.5' y='1' width='9' height='12' rx='4.5'/%3E%3Cg%3E%3Ccircle cx='40.0' cy='18' r='9.75'/%3E%3Ccircle cx='60.0' cy='18' r='9.75'/%3E%3Ccircle cx='30.0' cy='29' r='11.75'/%3E%3Ccircle cx='45.3' cy='29' r='11.75'/%3E%3Ccircle cx='60.7' cy='29' r='11.75'/%3E%3Ccircle cx='73.0' cy='29' r='11.75'/%3E%3Ccircle cx='19.0' cy='40' r='11.75'/%3E%3Ccircle cx='34.5' cy='40' r='11.75'/%3E%3Ccircle cx='50.0' cy='40' r='11.75'/%3E%3Ccircle cx='65.5' cy='40' r='11.75'/%3E%3Ccircle cx='81.0' cy='40' r='11.75'/%3E%3Ccircle cx='19.0' cy='52' r='11.75'/%3E%3Ccircle cx='32.6' cy='52' r='11.75'/%3E%3Ccircle cx='46.2' cy='52' r='11.75'/%3E%3Ccircle cx='59.8' cy='52' r='11.75'/%3E%3Ccircle cx='73.4' cy='52' r='11.75'/%3E%3Ccircle cx='84.0' cy='52' r='11.75'/%3E%3Ccircle cx='16.0' cy='64' r='11.75'/%3E%3Ccircle cx='29.6' cy='64' r='11.75'/%3E%3Ccircle cx='43.2' cy='64' r='11.75'/%3E%3Ccircle cx='56.8' cy='64' r='11.75'/%3E%3Ccircle cx='70.4' cy='64' r='11.75'/%3E%3Ccircle cx='84.0' cy='64' r='11.75'/%3E%3Ccircle cx='21.0' cy='76' r='11.75'/%3E%3Ccircle cx='37.0' cy='76' r='11.75'/%3E%3Ccircle cx='53.0' cy='76' r='11.75'/%3E%3Ccircle cx='69.0' cy='76' r='11.75'/%3E%3Ccircle cx='82.0' cy='76' r='11.75'/%3E%3Ccircle cx='24.0' cy='88' r='11.75'/%3E%3Ccircle cx='41.3' cy='88' r='11.75'/%3E%3Ccircle cx='58.7' cy='88' r='11.75'/%3E%3Ccircle cx='76.0' cy='88' r='11.75'/%3E%3Ccircle cx='36.0' cy='98' r='11.75'/%3E%3Ccircle cx='53.0' cy='98' r='11.75'/%3E%3Ccircle cx='67.0' cy='98' r='11.75'/%3E%3Ccircle cx='42.0' cy='104' r='9.75'/%3E%3Ccircle cx='58.0' cy='104' r='9.75'/%3E%3C/g%3E%3C/svg%3E");
+  --cone-scales: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 112'%3E%3Cpath d='M33.5 19Q38.0 23 40.0 26Q42.0 23 46.5 19M53.5 19Q58.0 23 60.0 26Q62.0 23 66.5 19M23.5 30Q28.0 34 30.0 37Q32.0 34 36.5 30M38.8 30Q43.3 34 45.3 37Q47.3 34 51.8 30M54.2 30Q58.7 34 60.7 37Q62.7 34 67.2 30M66.5 30Q71.0 34 73.0 37Q75.0 34 79.5 30M12.5 41Q17.0 45 19.0 48Q21.0 45 25.5 41M28.0 41Q32.5 45 34.5 48Q36.5 45 41.0 41M43.5 41Q48.0 45 50.0 48Q52.0 45 56.5 41M59.0 41Q63.5 45 65.5 48Q67.5 45 72.0 41M74.5 41Q79.0 45 81.0 48Q83.0 45 87.5 41M12.5 53Q17.0 57 19.0 60Q21.0 57 25.5 53M26.1 53Q30.6 57 32.6 60Q34.6 57 39.1 53M39.7 53Q44.2 57 46.2 60Q48.2 57 52.7 53M53.3 53Q57.8 57 59.8 60Q61.8 57 66.3 53M66.9 53Q71.4 57 73.4 60Q75.4 57 79.9 53M77.5 53Q82.0 57 84.0 60Q86.0 57 90.5 53M9.5 65Q14.0 69 16.0 72Q18.0 69 22.5 65M23.1 65Q27.6 69 29.6 72Q31.6 69 36.1 65M36.7 65Q41.2 69 43.2 72Q45.2 69 49.7 65M50.3 65Q54.8 69 56.8 72Q58.8 69 63.3 65M63.9 65Q68.4 69 70.4 72Q72.4 69 76.9 65M77.5 65Q82.0 69 84.0 72Q86.0 69 90.5 65M14.5 77Q19.0 81 21.0 84Q23.0 81 27.5 77M30.5 77Q35.0 81 37.0 84Q39.0 81 43.5 77M46.5 77Q51.0 81 53.0 84Q55.0 81 59.5 77M62.5 77Q67.0 81 69.0 84Q71.0 81 75.5 77M75.5 77Q80.0 81 82.0 84Q84.0 81 88.5 77M17.5 89Q22.0 93 24.0 96Q26.0 93 30.5 89M34.8 89Q39.3 93 41.3 96Q43.3 93 47.8 89M52.2 89Q56.7 93 58.7 96Q60.7 93 65.2 89M69.5 89Q74.0 93 76.0 96Q78.0 93 82.5 89M29.5 99Q34.0 103 36.0 106Q38.0 103 42.5 99M46.5 99Q51.0 103 53.0 106Q55.0 103 59.5 99M60.5 99Q65.0 103 67.0 106Q69.0 103 73.5 99M35.5 105Q40.0 109 42.0 112Q44.0 109 48.5 105M51.5 105Q56.0 109 58.0 112Q60.0 109 64.5 105' fill='none' stroke='rgb(40 38 98)' stroke-opacity='0.22' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --radius-s: 0.75rem;
+  --radius-m: 1.25rem;
+  --radius-l: 2rem;
+  --stroke: 2px;
+
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --dur-press: 140ms;
-  --dur-quick: 220ms;
-  --dur-panel: 600ms;
+  --dur-press: 120ms;
+  --dur-quick: 200ms;
 
-  --z-header: 30;
-  --z-tabbar: 30;
-  --z-menu: 50;
-  --z-top: 60;
+  /* Key-visual palette. */
+  --sky: rgb(69 69 150);
+  /* Night purple (palette "Background Purple" 50417E): one colour for the frame around
+     the content (header, title band's top, footer, overscroll), so they meet seamlessly. */
+  --night: rgb(80 65 126);
+  --cloud: rgb(241 161 186);
+  --sakura: rgb(233 125 159);
+  --blush: rgb(250 172 170);
+  --star: rgb(255 242 67);
+  --cream: rgb(253 248 234);
+  --arch: rgb(93 188 180);
+  --ink: rgb(40 38 98);
 
-  /* Colour roles (day). */
-  --bg: oklch(96.6% 0.02 355);
-  --bg-2: oklch(92.5% 0.04 355);
-  --sakura: oklch(85.5% 0.075 355);
-  --sakura-deep: oklch(76% 0.11 357);
-  --fg: oklch(24% 0.045 165);
-  --fg-soft: oklch(42% 0.035 170);
-  --line: oklch(24% 0.045 165 / 0.16);
-  --line-strong: oklch(24% 0.045 165 / 0.55);
-  --accent: oklch(53% 0.2 6);
-  --accent-soft: oklch(76% 0.11 357);
-  --accent-wash: oklch(92.5% 0.04 355);
-  --on-accent: oklch(98% 0.01 355);
-  --pine: oklch(34% 0.06 165);
-  --pine-text: oklch(36% 0.07 165);
-  --on-pine: oklch(93% 0.035 355);
-  --focus: oklch(40% 0.18 6);
-  --glass: oklch(96.6% 0.02 355 / 0.94);
-  --scrim: oklch(24% 0.045 165 / 0.5);
+  /* Roles. */
+  --kv-ground: rgb(243 168 196);
+  /* Print grain from the key visual: a raster tile, no blend mode (cheap on touch). */
+  --grain: url("/art/grain.png");
+  --surface: var(--cream);
+  --surface-2: rgb(255 238 236);
+  --fg: var(--ink);
+  --fg-soft: rgb(84 80 140);
+  --on-sky: var(--cream);
+  --line: rgb(40 38 98 / 0.18);
+  --line-strong: var(--ink);
+  /* Rose dark enough for small text on cream (5.6:1); --sakura is for fills. */
+  --rose-text: rgb(172 52 100);
+  --focus: var(--ink);
+  --scrim: rgb(28 26 74 / 0.62);
 
-  --motif-petal: oklch(96% 0.025 355);
-  --motif-petal-deep: oklch(78% 0.11 357);
-  --motif-stamen: oklch(80% 0.13 85);
-  --motif-pine: oklch(52% 0.06 45);
-  --motif-pine-deep: oklch(38% 0.05 40);
-  --motif-pine-light: oklch(74% 0.05 55);
-  --motif-sparkle: oklch(88% 0.07 357);
-  --motif-sparkle-core: oklch(99% 0.01 357);
-
-  --plate-paper: oklch(98% 0.012 355);
-
-  /* 櫻吹雪 canvas petals (far to near) and the flat blossom mark. */
-  --storm-1: oklch(88% 0.06 356);
-  --storm-2: oklch(78% 0.11 357);
-  --storm-3: oklch(68% 0.15 2);
-  --blossom-petal: oklch(80% 0.1 357);
-  --blossom-centre: oklch(24% 0.045 165);
-}
-
-/* 夜櫻 · night: sakura at dusk. The page stays pink (deep plum-rose), type turns pale. */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: oklch(23% 0.045 352);
-    --bg-2: oklch(28% 0.055 352);
-    --sakura: oklch(34% 0.075 354);
-    --sakura-deep: oklch(70% 0.12 357);
-    --fg: oklch(95% 0.025 355);
-    --fg-soft: oklch(83% 0.04 355);
-    --line: oklch(95% 0.025 355 / 0.16);
-    --line-strong: oklch(95% 0.025 355 / 0.5);
-    --accent: oklch(82% 0.11 357);
-    --accent-soft: oklch(68% 0.12 357);
-    --accent-wash: oklch(30% 0.06 354);
-    --on-accent: oklch(22% 0.045 352);
-    --pine: oklch(26% 0.04 165);
-    --pine-text: oklch(80% 0.07 160);
-    --on-pine: oklch(93% 0.035 355);
-    --focus: oklch(90% 0.09 357);
-    --glass: oklch(23% 0.045 352 / 0.94);
-    --scrim: oklch(12% 0.03 352 / 0.7);
-
-    --motif-petal: oklch(92% 0.04 357);
-    --motif-petal-deep: oklch(74% 0.12 357);
-    --motif-sparkle: oklch(84% 0.08 357);
-    --motif-sparkle-core: oklch(97% 0.02 357);
-
-    --plate-paper: oklch(28% 0.05 352);
-
-    --storm-1: oklch(52% 0.09 356);
-    --storm-2: oklch(70% 0.11 357);
-    --storm-3: oklch(86% 0.07 357);
-    --blossom-petal: oklch(78% 0.11 357);
-    --blossom-centre: oklch(95% 0.025 355);
-  }
+  --motif-petal-deep: var(--sakura);
 }

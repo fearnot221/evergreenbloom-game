@@ -10,6 +10,8 @@ const app = await createApp({
   staffUsername: process.env.STAFF_USERNAME,
   staffPassword: process.env.STAFF_PASSWORD,
   stampKeys: JSON.parse(process.env.STAMP_KEYS || '{}'),
+  trustProxy: process.env.TRUST_PROXY === '1',
+  photoRetentionDays: Number(process.env.PHOTO_RETENTION_DAYS) || 0,
 });
 app.server.listen(8080, '0.0.0.0', () => console.log('Game server listening on :8080'));
 for (const signal of ['SIGTERM', 'SIGINT']) {

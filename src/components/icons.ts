@@ -13,6 +13,7 @@ export {
   ExportIcon,
   HandHeartIcon,
   HouseIcon,
+  IdentificationBadgeIcon,
   InfoIcon,
   ListIcon,
   MapTrifoldIcon,

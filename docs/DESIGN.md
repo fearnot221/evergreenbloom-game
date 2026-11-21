@@ -1,47 +1,44 @@
 # Design
 
-## Current visual language · v6 「櫻吹雪 · 一陣風」 (adopted 2026-10-17)
+## Current visual language · v7 「星夜集章」 (adopted 2026-11-09)
 
-**Why v6.** The user judged v5 still ordinary and set Awwwards Site-of-the-Day as the
-target, banning templates, card stacks, heavy rounding, gratuitous gradients, emoji,
-one animation everywhere, centred everything and placeholder images; text motion should
-not all "pop up", with ui.fearnot.tw's text-motion catalogue as the reference.
+**Why v7.** The game repository now evolves separately from the website. The user
+supplied the official key visual (主視覺) and its colour card and asked for a full
+rebuild of the game UI around them. v6's website vocabulary (outlined ink titles,
+running bands, square corners, no gradients) is retired here.
 
-**Concept.** One gust of wind carries petals from 松 (rooted, still) to 櫻 (moving)
-through the campus. Everything that moves travels with that wind, left to right.
+**Concept.** The key visual supplies ingredients, not a layout. Its elements are redrawn
+one by one in `src/components/motifs.tsx` (cloud with a glowing rim, blossom, outlined
+flower, star, sparkle, meteor, petal, pine cone, acorn, squirrel) and the app is designed
+around the game, not around the poster: a compact night-sky title band, the progress as
+a star map, hexagon seals for stamps and steps, a bottom tab bar on phones. A fine print
+grain sits over the fills (kept at the user's request).
+
+**Revisions 2026-11-09 (same day).** 1: plain motifs ("all SVG"). 2: the artwork file as the
+head ("do not place the image"). 3: the composition redrawn as one SVG, then as separate
+elements still arranged like the poster ("still copying the key visual"). Current: a new
+app layout that uses the elements where they have a job.
 
 | Area | Decision | Source |
 | --- | --- | --- |
-| Colour | Unchanged from v5: blush paper, sakura field, pine ink, one hot rose; night stays plum-pink. No gradients (the only `linear-gradient` is a one-colour highlighter band) | `tokens.css` |
-| Type | LXGW WenKai TC at poster scale; titles are outline + fill (`Ink.tsx`); phrases atomic (`Phrases.tsx`); vertical CJK for 松 and the hero edge | `components/`, `base.css` |
-| Images | No placeholders. Hero: a live canvas petal storm (`motion/PetalStorm.tsx`) with near petals in front of the wordmark. 松 and 櫻: the glyphs are the pictures, filled with drawn textures (`public/art/cones.svg`, `petals.svg`, from `scripts/art/build-textures.mjs`). Campus: the real OpenStreetMap drawing. Menu: the destination's first character as an outline | as listed |
-| Shape | Square corners everywhere; only petals and the 松櫻 emblem are round. Header is a full-width bar with a hairline; tab bar a square bottom bar with a rose rule on the current tab; buttons square with an ink/rose wipe from the left | `base.css`, `shell.css` |
-| Mark | Flat five-petal blossom (`Blossom` in `motifs.tsx`), no gradients | `motifs.tsx` |
+| Colour | Key-visual card: 紫色天空 454596, 粉色雲 f1a1ba, 櫻花(深) e97d9f, 櫻花(淺) faacaa, 星星 fff243. Read from the visual: cream, teal, deep ink, the cloud ground (`--kv-ground`). Element tints live with each element. `--rose-text` is a darker rose for small text on cream. One theme | `src/styles/tokens.css`, `motifs.tsx` |
+| Type | Display face: Noto Sans TC Black (900), self-hosted as the `songying-display.woff2` subset (41 KiB, OFL), for titles, the wordmark, seals and counts; chosen 2026-11-10 to match the key visual's heavy lettering. LXGW WenKai TC Bold was too light, and faking weight with a text stroke fused dense characters. Body: system PingFang TC / Noto Sans TC | `tokens.css`, `scripts/fonts/` |
+| Elements | Each is its own SVG with its own viewBox, sized and placed by CSS. `Cloud` has three shapes and three tones; its bright rim is a lighter copy nudged up | `components/motifs.tsx` |
+| Sakura | Seeded geometry in `sakura-geometry.ts`, drawn by `Sakura.tsx` in three layers. Petal: six cubic Béziers (wedge base, two lobes, a shallow off-centre V notch), each side its own width and length. Flower: five petals in neighbouring palette steps (never one flat colour), a rose blush and heart, 5 to 10 curved stamens, some with ellipse anthers, a thin cream line. Branch: a tapered ribbon along a cubic Bézier, forked two levels deep at uneven alternating angles. Placement: weighted clusters at branch tips and along branches, stretched along the branch, one or two large blooms with medium and small ones, overlap-checked per layer. Back: large silhouettes in deep pink, berry and lavender. Front: large outlined blooms over a lavender print offset; two are cropped by the frame. Palette: F8B5CC, F29AB5, F5A6A4, E77BA0, D96592, cream FFF0D8, ivory FFF5DA; band gradient 50417E → 8D6BA2 with paper mottling and grain. About 500 SVG nodes | `components/sakura-geometry.ts`, `Sakura.tsx`, `tests/sakura.test.ts` |
+| Title band | Left-aligned like an app screen title: eyebrow (sakura · 國立中央大學 · 第二屆松櫻祭), title (cream → blush gradient at the font's own weight; a faux-bold stroke was tried and dropped because it fused dense characters), lede, optional `aside`. A sakura bough (`Sakura.tsx`) grows in from the top-right corner, as tall as the band (at least 28rem) and trimmed by its edges; on phones it sits smaller in the top corner above the title. A row of cloud tops closes the band | `components/page.tsx`, `Sakura.tsx`, `shell.css` |
+| Progress | 集章冊 puts the count and a star map in the band: spots are hexagon nodes on a dotted teal route, lit as a star when collected | `game/StarMap.tsx`, `game.css` |
+| Shapes | Stamps are plump pine cones (章 = 松果, 2026-11-12): `.cone` masks a seal with `--cone` (plump, about 90% as wide as tall: overlapping scales and a stem) and lays `--cone-scales` (V-shaped scale tips) over the fill; used for the stamp grid, spot sheet, 集章成功, the task seal and the guide's task and spot seals. Numbered markers keep the hexagon (`--hex`): progress stops, step numbers, map pins, prize counts | `tokens.css`, `components.css` |
+| Squirrel | Has a job, not a pose: greets first-time players beside sign-in, cheers on 集章成功 | `AuthForm.tsx`, `StampReveal.tsx` |
+| Navigation | Wide screens: pills with icons in the header. Phones (≤40rem): a fixed bottom tab bar, four icon + label tabs, current tab star-yellow | `App.tsx`, `shell.css` |
+| Texture | `public/art/grain.png`, a 180px raster speckle tile (no blend modes, cheap under pinch-zoom), layered on the header, page ground, sheet, buttons, seals and footer | `tokens.css` `--grain` |
+| Marks | `StarMark` (footer) and `BloomMark` (brand, eyebrow; one flower from the sakura geometry) | `components/motifs.tsx` |
+| Sheet | One cream panel per page with grain, rounded 2rem, the badge's dotted teal inner edge and a soft white rim like the clouds' glow | `shell.css` |
+| Controls | Pill buttons: star-yellow with grain, an ink edge and a 4px ink shadow that presses down; secondary is cream. Inputs: white, 2px ink edge, rounded. Quiz answers and consent are whole-row choices that turn star-yellow | `components.css`, `game/game.css` |
+| Stamp book | Phone-first (2026-11-12): the ten spots are one page of hexagon seals, five across (collected: sakura seal with the spot's name; not yet: its number); a tap opens a bottom sheet (centred card on wide screens) with the task type, status, the introduction once collected, and a map link. 掃描 QR Code floats above the tab bar on phones; typed codes fold under 「掃不到？輸入代碼」; prizes are compact cards; the account sits in a quiet row at the end | `game/GamePage.tsx`, `SpotSheet.tsx`, `game.css` |
+| Footer | Cloud tops and a star showing above a rounded night-sky panel with grain | `App.tsx`, `shell.css` |
 
-**Home:** hero (storm, ink-filled wordmark, actions offset right, facts ledger) ·
-小副標 slogan (two centred lines at slogan size, the story paragraph beneath) · 松 (pine-cone glyph, three vertical
-columns) · 櫻 (petal window glyph) · 即時導向 (pine departure board) · 走進中央 (giant
-bands across the campus plate) · 合作夥伴 (splitting heading) · footer (stamped wordmark).
-
-**Inner pages (2026-10-17).** Every page head is a sakura field with the title and lede on
-the left and the title's own outlined columns flowing on the right (直書逆走); section
-titles are outline-and-fill ink titles. Pages carry one FLOW element each where it means
-something: categories (活動介紹), first-edition facts (關於我們 history), recruitment
-tape (團隊成員), the partner ribbon (合作單位); 活動期程 shares the home board's
-split-flap times. About's 松 / 櫻 are unboxed textured glyphs (pine cones, petals).
-Grids that hold full-bleed bands use `minmax(0, 1fr)` tracks so the bands cannot widen
-the page.
-
-**Footer.** The closing wordmark is a full-width ink ribbon (緞帶) carrying the festival's
-name along a wave.
-
-**Per-page signatures.** 合作單位: a split-invert call 「成為合作夥伴」; 互動平台: seals for
-the three ways to collect; 捐款: an outlined 「支持」 filling with sakura; 最新消息: a 快訊
-ticker; 來訪須知: highlighted cautions; 404: an echoing 「迷路了嗎」. Phone spacing between
-inner-page sections is 4rem (9rem from 900px). The page-head pill uses a 94% opaque glass
-so large titles do not smear behind it.
-
-**Unknowns.** Official logo, key visual and photography; palette approval.
+**Not drawn.** The NCU logo is left out. The squirrel is a simplified redraw of the
+festival's mascot; replace it with official artwork if supplied.
 
 ## Design direction
 

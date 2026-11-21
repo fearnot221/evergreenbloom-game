@@ -26,7 +26,6 @@ export function collectCharacters(sources) {
 export const subsets = {
   'songying-display': [
     'src/data/display-copy.ts',
-    { file: 'src/data/content.ts', keys: ['title', 'name', 'story', 'status', 'value'] },
     { file: 'src/data/stamps.ts', keys: ['name'] },
     'src/data/poster-copy.ts',
   ],

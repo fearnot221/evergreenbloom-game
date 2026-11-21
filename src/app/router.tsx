@@ -1,6 +1,5 @@
 import type { ComponentType } from 'react';
 import { createBrowserRouter, type RouteObject, redirect } from 'react-router-dom';
-import { isStandalone } from '../game/stamp-store';
 import App from './App';
 import RouteError from './RouteError';
 
@@ -32,6 +31,7 @@ export const routes: RouteObject[] = [
           { index: true, loader: ({ request }) => redirect(`/game${new URL(request.url).search}`) },
           { path: 'play', lazy: page(() => import('../pages/PlayPage')) },
           { path: 'game', lazy: page(() => import('../game/GamePage')) },
+          { path: 'map', lazy: page(() => import('../map/StampMap')) },
           { path: 'staff', lazy: page(() => import('../game/StaffPage')) },
           // QR codes on site point here: /stamp/<spot>?k=<key>.
           {
@@ -39,7 +39,7 @@ export const routes: RouteObject[] = [
             loader: ({ params, request }) => {
               const k = new URL(request.url).searchParams.get('k') ?? '';
               const query = new URLSearchParams({ spot: params.spot ?? '', k });
-              return redirect(`${isStandalone() ? '/game' : '/play'}?${query}`);
+              return redirect(`/game?${query}`);
             },
           },
           { path: '*', lazy: page(() => import('../pages/NotFoundPage')) },

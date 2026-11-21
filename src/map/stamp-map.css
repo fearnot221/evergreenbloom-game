@@ -1,0 +1,189 @@
+/* 集章地圖: an illustrated campus with landmark buttons, and a panel for the spot. */
+/* Phones: the map keeps a readable size and scrolls sideways inside the sheet. */
+.campus-scroll {
+  inline-size: 100%;
+  margin-top: var(--space-6);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  border-radius: var(--radius-m);
+}
+
+.campus {
+  position: relative;
+  inline-size: max(100%, 44rem);
+  aspect-ratio: 1281 / 819;
+  border-radius: var(--radius-m);
+  background: rgb(214 226 236);
+}
+
+.campus-art {
+  position: absolute;
+  inset: 0;
+  inline-size: 100%;
+  block-size: 100%;
+  border-radius: inherit;
+}
+
+.campus-ground {
+  fill: var(--cream);
+  stroke: var(--arch);
+  stroke-width: 3;
+  stroke-dasharray: 0 9;
+  stroke-linecap: round;
+}
+
+.campus-green {
+  fill: rgb(196 226 202);
+}
+
+.campus-water {
+  fill: rgb(150 186 226);
+}
+
+.campus-road {
+  fill: none;
+  stroke: white;
+  stroke-width: 7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.campus-path {
+  fill: none;
+  stroke: rgb(232 214 200);
+  stroke-width: 2.5;
+  stroke-dasharray: 5 5;
+  stroke-linecap: round;
+}
+
+.campus-building {
+  fill: var(--blush);
+  stroke: rgb(40 38 98 / 0.35);
+  stroke-width: 1.2;
+}
+
+/* Landmarks: a numbered hexagon on the spot, the name beside it on wide screens. */
+.pin {
+  position: absolute;
+  top: var(--y);
+  left: var(--x);
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 0.15rem;
+  min-inline-size: 44px;
+  min-block-size: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  translate: -50% -50%;
+}
+
+.pin-mark {
+  display: grid;
+  place-items: center;
+  inline-size: 1.9rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: var(--sky);
+  color: var(--cream);
+  font-size: 0.85rem;
+  transition: scale var(--dur-quick) var(--ease-out);
+}
+
+.pin.is-done .pin-mark {
+  background: var(--sakura);
+}
+
+.pin.is-selected .pin-mark {
+  background: var(--star);
+  color: var(--ink);
+  scale: 1.25;
+}
+
+.pin-name {
+  padding: 0 0.4em;
+  border-radius: 0.4em;
+  background: rgb(253 248 234 / 0.9);
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 40rem) {
+  .pin-name {
+    display: none;
+  }
+
+  .pin.is-selected .pin-name {
+    display: block;
+  }
+}
+
+.pin:focus-visible {
+  outline-offset: 0;
+}
+
+/* Under the map: the data credit, and 鹿林天文台 as a point beyond the frame. */
+.map-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  inline-size: 100%;
+}
+
+.lulin {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-3);
+  border: var(--stroke) dashed var(--ink);
+  border-radius: var(--radius-s);
+  background: rgb(253 248 234 / 0.94);
+  color: var(--ink);
+  font-size: 0.8125rem;
+  text-align: start;
+}
+
+.lulin.is-selected {
+  border-style: solid;
+  background: var(--star);
+}
+
+.lulin-place {
+  display: block;
+  color: var(--fg-soft);
+  font-size: 0.75rem;
+}
+
+.campus-credit {
+  color: var(--fg-soft);
+  font-size: 0.6875rem;
+}
+
+.map-panel {
+  min-block-size: 9rem;
+  padding: var(--space-5);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+}
+
+.panel-kicker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--rose-text);
+  font-weight: 800;
+}
+
+.panel-done {
+  display: inline-flex;
+  gap: 0.2em;
+  align-items: center;
+  color: var(--ink);
+}

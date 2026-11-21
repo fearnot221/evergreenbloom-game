@@ -5,20 +5,42 @@ import os from 'node:os';
 import path from 'node:path';
 import { backup, DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import { gzipSync } from 'node:zlib';
 import { createApp } from '../server/app.mjs';
 
 const origin = 'http://localhost:8080';
 const secret = 'correct-horse-battery-42';
-const stampKeys = {
-  lake: 'LAKE-TEST-SECRET-1234',
-  library: 'PHOTO-TEST-SECRET-1234',
-  gate: 'GATE-TEST-SECRET-1234',
-};
-// Real 1px PNG; the review, rather than file presence, earns the photo stamp.
+const SPOTS = [
+  'zhongda-road',
+  'tingsong',
+  'main-library',
+  'chungcheng-library',
+  'baihua',
+  'auditorium',
+  'zhongda-lake',
+  'friendship-sakura',
+  'csrsr-station',
+  'taichi',
+];
+const stampKeys = Object.fromEntries(
+  SPOTS.map((id, i) => [id, `SPOT-${String(i).padStart(2, '0')}-TEST-SECRET-1234`]),
+);
+const PHOTO_SPOTS = ['tingsong', 'zhongda-lake', 'friendship-sakura'];
+// Real 1px PNG.
 const png = Buffer.from(
   'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aA1cAAAAASUVORK5CYII=',
   'base64',
 );
+/** A correct submission for every quiz and fill spot (photo spots upload instead). */
+const correct = {
+  'zhongda-road': 0,
+  'main-library': 1,
+  'chungcheng-library': '陳其寬',
+  baihua: 2,
+  auditorium: '松果',
+  'csrsr-station': 1,
+  taichi: 2,
+};
 
 async function fixture(t) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'songying-api-'));
@@ -87,10 +109,34 @@ async function fixture(t) {
     assert.equal(response.status, 200);
     return response.cookie;
   };
+  const photo = (cookie, spot, raw = png, extra = {}) =>
+    request(`/api/claims/${spot}/photo`, {
+      cookie,
+      raw,
+      headers: {
+        'Content-Type': 'image/png',
+        'X-Stamp-Key': stampKeys[spot],
+        'X-Photo-Consent': 'yes',
+        ...extra,
+      },
+    });
+  const collect = async (cookie, spots) => {
+    for (const spot of spots) {
+      const result = PHOTO_SPOTS.includes(spot)
+        ? await photo(cookie, spot)
+        : await request(`/api/claims/${spot}`, {
+            cookie,
+            data: { key: stampKeys[spot], answer: correct[spot] },
+          });
+      assert.equal(result.status, 200, spot);
+    }
+  };
   return {
     request,
     register,
     staff,
+    collect,
+    photo,
     options,
     restart: async () => {
       await stop();
@@ -107,10 +153,6 @@ test('one Compose file, no secondary deployment configs or public station secret
   );
   const client = await readFile('src/data/stamps.ts', 'utf8');
   assert.doesNotMatch(client, /\bkey:|\banswer:/);
-  assert.match(
-    await readFile('scripts/sw-template.js', 'utf8'),
-    /url.pathname.startsWith\('\/api\/'\)/,
-  );
 });
 
 test('login binds server progress to a player, logout revokes the session, role cannot be self-selected', async (t) => {
@@ -156,7 +198,7 @@ test('login binds server progress to a player, logout revokes the session, role 
   );
 });
 
-test('same-origin checks, malformed bodies, upload limits, unknown API and private file isolation', async (t) => {
+test('same-origin checks, malformed and oversized bodies, unknown API and private file isolation', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
   assert.equal(
@@ -179,6 +221,7 @@ test('same-origin checks, malformed bodies, upload limits, unknown API and priva
   );
   assert.equal((await f.request('/api/unknown')).status, 404);
   assert.equal((await f.request('/game')).status, 200);
+  assert.equal((await f.request('/map')).status, 200);
   assert.equal((await f.request('/assets/missing.js')).status, 404);
   assert.equal((await f.request('/game.sqlite')).status, 404);
   assert.equal((await f.request('/.env')).status, 404);
@@ -193,153 +236,73 @@ test('same-origin checks, malformed bodies, upload limits, unknown API and priva
   f.options.origin = origin;
   await f.restart();
 
-  const upload = await f.request('/api/claims/library/photo', {
-    cookie: player.cookie,
-    raw: Buffer.alloc(3 * 1024 * 1024 + 1),
-    headers: {
-      'X-Stamp-Key': stampKeys.library,
-      'X-Photo-Consent': 'yes',
-      'Content-Type': 'image/png',
-    },
-  });
-  assert.equal(upload.status, 413);
+  assert.equal(
+    (
+      await f.request('/api/claims/zhongda-road', {
+        cookie: player.cookie,
+        raw: `{"key":"${'A'.repeat(5000)}"}`,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    ).status,
+    413,
+  );
 });
 
-test('server checks codes and quiz answers, deduplicates stamps and ignores forged user IDs', async (t) => {
+test('server checks codes, quiz and fill answers, deduplicates stamps and ignores forged user IDs', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
   const other = await f.register('other-user');
   const cookie = player.cookie;
+  const claim = (spot, data) => f.request(`/api/claims/${spot}`, { cookie, data });
   assert.equal((await f.request('/api/resolve', { cookie, data: { key: 'GATE-26' } })).status, 400);
   assert.equal(
-    (await f.request('/api/resolve', { cookie, data: { key: stampKeys.gate } })).data.spot,
-    'gate',
+    (await f.request('/api/resolve', { cookie, data: { key: stampKeys.taichi.toLowerCase() } }))
+      .data.spot,
+    'taichi',
   );
+  // A code only opens its own spot.
+  assert.equal((await claim('taichi', { key: stampKeys.baihua, answer: 2 })).status, 400);
+  // Wrong or missing quiz answers fail and can be retried.
   assert.equal(
-    (await f.request('/api/claims/gate', { cookie, data: { key: stampKeys.lake } })).status,
+    (await claim('zhongda-road', { key: stampKeys['zhongda-road'], answer: 2 })).status,
     400,
   );
+  assert.equal((await claim('zhongda-road', { key: stampKeys['zhongda-road'] })).status, 400);
   assert.equal(
-    (await f.request('/api/claims/lake', { cookie, data: { key: stampKeys.lake, answer: 1 } }))
-      .status,
-    400,
+    (await claim('zhongda-road', { key: stampKeys['zhongda-road'], answer: 0 })).status,
+    200,
   );
+  // Fill answers are normalized; a short reply containing the answer counts.
+  const fill = (answer) =>
+    claim('chungcheng-library', { key: stampKeys['chungcheng-library'], answer });
+  assert.equal((await fill('陳其')).status, 400);
+  // A list of guesses is too long to pass, even if it holds the answer.
+  assert.equal((await fill('貝聿銘王大閎陳其寬李祖原姚仁喜張樞漢寶德黃聲遠')).status, 400);
+  assert.equal((await fill(42)).status, 400);
+  assert.equal((await fill(' 陳其寬校友。')).status, 200);
   assert.equal(
-    (await f.request('/api/claims/lake', { cookie, data: { key: stampKeys.lake } })).status,
-    400,
-  );
-  assert.equal(
-    (await f.request('/api/claims/lake', { cookie, data: { key: stampKeys.lake, answer: 0 } }))
+    (await claim('auditorium', { key: stampKeys.auditorium, answer: '大禮堂的設計靈感是松果' }))
       .status,
     200,
   );
+  // Codes are checked server-side; repeated submissions do not duplicate or forge.
   const results = await Promise.all(
     Array.from({ length: 5 }, () =>
-      f.request('/api/claims/gate', {
-        cookie,
-        data: { key: stampKeys.gate, userId: other.data.user.id, earnedAt: '1900-01-01' },
+      claim('baihua', {
+        key: stampKeys.baihua,
+        answer: 2,
+        userId: other.data.user.id,
+        earnedAt: '1900-01-01',
       }),
     ),
   );
   assert.ok(results.every((result) => result.status === 200));
-  assert.equal(Object.keys(results[0].data.stamps).length, 2);
-  assert.ok(Date.parse(results[0].data.stamps.gate) > Date.parse('2020-01-01'));
+  assert.equal(Object.keys(results[0].data.stamps).length, 4);
+  assert.ok(Date.parse(results[0].data.stamps.baihua) > Date.parse('2020-01-01'));
   assert.deepEqual((await f.request('/api/me', { cookie: other.cookie })).data.stamps, {});
 });
 
-test('photo presence never earns a stamp; only staff can review; rejection allows resubmission and approval deletes image', async (t) => {
-  const f = await fixture(t);
-  const player = await f.register();
-  const staff = await f.staff();
-  const upload = (raw, extra = {}) =>
-    f.request('/api/claims/library/photo', {
-      cookie: player.cookie,
-      raw,
-      headers: {
-        'Content-Type': 'image/png',
-        'X-Stamp-Key': stampKeys.library,
-        'X-Photo-Consent': 'yes',
-        ...extra,
-      },
-    });
-  assert.equal(
-    (
-      await f.request('/api/claims/library', {
-        cookie: player.cookie,
-        data: { key: stampKeys.library, photo: true },
-      })
-    ).status,
-    400,
-  );
-  assert.equal((await upload(png, { 'X-Photo-Consent': 'no' })).status, 400);
-  assert.equal((await upload(Buffer.from('<svg onload="x"/>'))).status, 415);
-  assert.equal((await upload(png, { 'Content-Type': 'image/jpeg' })).status, 415);
-  const pending = await upload(png);
-  assert.equal(pending.status, 202);
-  assert.equal(pending.data.photos.library, 'pending');
-  assert.equal(pending.data.stamps.library, undefined);
-  const firstId = (await f.request('/api/staff/photos', { cookie: staff })).data[0].id;
-  assert.equal((await upload(png)).status, 202);
-  assert.equal(
-    (await f.request(`/api/staff/photos/${firstId}`, { cookie: staff, data: { approve: true } }))
-      .status,
-    409,
-  );
-
-  let photos = (await f.request('/api/staff/photos', { cookie: staff })).data;
-  assert.equal(photos.length, 1);
-  assert.equal(
-    (await f.request(`/api/staff/photos/${photos[0].id}`, { cookie: player.cookie })).status,
-    403,
-  );
-  const image = await f.request(`/api/staff/photos/${photos[0].id}`, { cookie: staff });
-  assert.equal(image.headers.get('content-type'), 'image/png');
-  assert.equal(image.headers.get('cache-control'), 'no-store');
-  assert.equal(image.headers.get('x-content-type-options'), 'nosniff');
-  assert.equal(
-    (
-      await f.request(`/api/staff/photos/${photos[0].id}`, {
-        cookie: staff,
-        data: { approve: false },
-      })
-    ).status,
-    200,
-  );
-  assert.equal(
-    (await f.request('/api/me', { cookie: player.cookie })).data.photos.library,
-    'rejected',
-  );
-  assert.equal((await upload(png)).status, 202);
-  photos = (await f.request('/api/staff/photos', { cookie: staff })).data;
-  assert.equal(
-    (
-      await f.request(`/api/staff/photos/${photos[0].id}`, {
-        cookie: staff,
-        data: { approve: true },
-      })
-    ).status,
-    200,
-  );
-  assert.ok((await f.request('/api/me', { cookie: player.cookie })).data.stamps.library);
-  assert.equal(
-    (
-      await f.request(`/api/staff/photos/${photos[0].id}`, {
-        cookie: staff,
-        data: { approve: true },
-      })
-    ).status,
-    409,
-  );
-  assert.equal(
-    (await f.request(`/api/staff/photos/${photos[0].id}`, { cookie: staff })).status,
-    404,
-  );
-  const db = new DatabaseSync(f.options.database);
-  t.after(() => db.close());
-  assert.equal(db.prepare('SELECT image FROM photos').get().image, null);
-});
-
-test('complete server stamps are required; concurrent redemption is exactly once; records survive restart and backup', async (t) => {
+test('two prize tiers: 6 stamps for the meal voucher, 10 for merch, once each, exactly once under concurrency; records survive restart and backup', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
   const staff = await f.staff();
@@ -348,79 +311,170 @@ test('complete server stamps are required; concurrent redemption is exactly once
   const code = db
     .prepare('SELECT redeem_code FROM users WHERE id=?')
     .get(player.data.user.id).redeem_code;
-  assert.equal(
-    (await f.request('/api/staff/redeem', { cookie: staff, data: { code } })).status,
-    409,
+  const redeem = (tier, cookie = staff) =>
+    f.request('/api/staff/redeem', { cookie, data: { code, tier } });
+  assert.equal((await redeem('meal', player.cookie)).status, 403);
+  assert.equal((await redeem('cake')).status, 400);
+  await f.collect(player.cookie, SPOTS.slice(0, 5));
+  let me = (await f.request('/api/me', { cookie: player.cookie })).data;
+  assert.equal(me.redeemCode, null);
+  assert.equal((await redeem('meal')).status, 409);
+  await f.collect(player.cookie, SPOTS.slice(5, 6));
+  me = (await f.request('/api/me', { cookie: player.cookie })).data;
+  assert.equal(me.redeemCode, code);
+  assert.deepEqual(
+    [me.prizes.meal.eligible, me.prizes.merch.eligible, me.prizes.meal.left],
+    [true, false, 100],
   );
-  assert.equal(
-    (await f.request('/api/staff/redeem', { cookie: player.cookie, data: { code } })).status,
-    403,
-  );
-  for (const spot of ['lake', 'gate'])
-    await f.request(`/api/claims/${spot}`, {
-      cookie: player.cookie,
-      data: { key: stampKeys[spot], answer: 0 },
-    });
-  await f.request('/api/claims/library/photo', {
-    cookie: player.cookie,
-    raw: png,
-    headers: {
-      'Content-Type': 'image/png',
-      'X-Stamp-Key': stampKeys.library,
-      'X-Photo-Consent': 'yes',
-    },
-  });
-  const photo = (await f.request('/api/staff/photos', { cookie: staff })).data[0];
-  await f.request(`/api/staff/photos/${photo.id}`, { cookie: staff, data: { approve: true } });
-  assert.equal((await f.request('/api/me', { cookie: player.cookie })).data.redeemCode, code);
-  assert.equal(
-    (await f.request('/api/staff/lookup', { cookie: staff, data: { code } })).data.complete,
-    true,
-  );
-  const results = await Promise.all(
-    Array.from({ length: 6 }, () =>
-      f.request('/api/staff/redeem', { cookie: staff, data: { code } }),
-    ),
-  );
+  assert.equal((await redeem('merch')).status, 409);
+  const results = await Promise.all(Array.from({ length: 6 }, () => redeem('meal')));
   assert.equal(results.filter((item) => item.status === 201).length, 1);
   assert.equal(results.filter((item) => item.status === 409).length, 5);
+  await f.collect(player.cookie, SPOTS.slice(6));
+  const lookup = (await f.request('/api/staff/lookup', { cookie: staff, data: { code } })).data;
+  assert.equal(lookup.count, 10);
+  assert.ok(lookup.prizes.meal.redemption);
+  assert.equal(lookup.prizes.merch.eligible, true);
+  assert.equal((await redeem('merch')).status, 201);
   let records = (await f.request('/api/staff/redemptions', { cookie: staff })).data;
-  assert.equal(records.length, 1);
-  assert.equal(records[0].reviewer, 'staff');
-  assert.equal(records[0].stamp_count, 3);
+  assert.deepEqual(records.map((r) => r.tier).sort(), ['meal', 'merch']);
+  assert.equal(records.find((r) => r.tier === 'meal').stamp_count, 6);
   await f.restart();
-  assert.equal(
-    (await f.request('/api/me', { cookie: player.cookie })).data.redemption.id,
-    records[0].id,
-  );
+  me = (await f.request('/api/me', { cookie: player.cookie })).data;
+  assert.equal(me.prizes.merch.redemption.id, records.find((r) => r.tier === 'merch').id);
+  assert.equal(me.prizes.merch.left, 99);
   records = (await f.request('/api/staff/redemptions', { cookie: staff })).data;
-  assert.equal(records.length, 1);
+  assert.equal(records.length, 2);
   const copy = path.join(path.dirname(f.options.database), 'backup.sqlite');
   await backup(db, copy);
   const restored = new DatabaseSync(copy);
   t.after(() => restored.close());
-  assert.equal(restored.prepare('SELECT count(*) as n FROM redemptions').get().n, 1);
+  assert.equal(restored.prepare('SELECT count(*) as n FROM redemptions').get().n, 2);
 });
 
-test('expired photos are removed, expired sessions rejected and staff password rotation revokes old sessions', async (t) => {
+test('each prize stops at its stock of 100, even when the last ones are claimed at once', async (t) => {
+  const f = await fixture(t);
+  const staff = await f.staff();
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  // 98 earlier receipts from seeded players, then three eligible players race for two.
+  const insertUser = db.prepare("INSERT INTO users VALUES (?,?,'x','player',?,'2026-01-01')");
+  const insertReceipt = db.prepare(
+    "INSERT INTO redemptions VALUES (?,?,'meal','2026-01-01','staff',6)",
+  );
+  for (let i = 0; i < 98; i++) {
+    insertUser.run(`seed-${i}`, `seed-${i}`, `SEED${String(i).padStart(20, '0')}`);
+    insertReceipt.run(`r-${i}`, `seed-${i}`);
+  }
+  const codes = [];
+  for (const name of ['racer-a', 'racer-b', 'racer-c']) {
+    const player = await f.register(name);
+    await f.collect(player.cookie, SPOTS.slice(0, 6));
+    codes.push(db.prepare('SELECT redeem_code FROM users WHERE username=?').get(name).redeem_code);
+  }
+  const results = await Promise.all(
+    codes.map((code) =>
+      f.request('/api/staff/redeem', { cookie: staff, data: { code, tier: 'meal' } }),
+    ),
+  );
+  assert.equal(results.filter((r) => r.status === 201).length, 2);
+  assert.match(results.find((r) => r.status === 409).data.error, /兌換完畢/);
+});
+
+test('a photo upload with consent earns the stamp at once and is kept; staff pick at most 3 per spot', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
   const staff = await f.staff();
-  await f.request('/api/claims/library/photo', {
-    cookie: player.cookie,
-    raw: png,
-    headers: {
-      'Content-Type': 'image/png',
-      'X-Stamp-Key': stampKeys.library,
-      'X-Photo-Consent': 'yes',
-    },
+  const cookie = player.cookie;
+  // The photo task cannot be completed without a photo.
+  assert.equal(
+    (await f.request('/api/claims/tingsong', { cookie, data: { key: stampKeys.tingsong } })).status,
+    400,
+  );
+  assert.equal((await f.photo(cookie, 'tingsong', png, { 'X-Photo-Consent': 'no' })).status, 400);
+  assert.equal((await f.photo(cookie, 'tingsong', Buffer.from('<svg onload="x"/>'))).status, 415);
+  assert.equal(
+    (await f.photo(cookie, 'tingsong', png, { 'Content-Type': 'image/jpeg' })).status,
+    415,
+  );
+  assert.equal((await f.photo(cookie, 'baihua')).status, 400);
+  assert.equal((await f.photo(cookie, 'tingsong', Buffer.alloc(3 * 1024 * 1024 + 1))).status, 413);
+  const done = await f.photo(cookie, 'tingsong');
+  assert.equal(done.status, 200);
+  assert.ok(done.data.stamps.tingsong);
+  assert.deepEqual(done.data.photos, { tingsong: { picked: false } });
+  assert.equal((await f.photo(cookie, 'tingsong')).status, 409);
+
+  // Only staff see the archive; images are served sandboxed and uncached.
+  assert.equal((await f.request('/api/staff/photos?spot=tingsong', { cookie })).status, 403);
+  assert.equal((await f.request('/api/staff/photos?spot=baihua', { cookie: staff })).status, 400);
+  let list = (await f.request('/api/staff/photos?spot=tingsong', { cookie: staff })).data;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].username, 'participant');
+  const image = await f.request(`/api/staff/photos/${list[0].id}`, { cookie: staff });
+  assert.equal(image.headers.get('content-type'), 'image/png');
+  assert.equal(image.headers.get('cache-control'), 'no-store');
+  assert.match(image.headers.get('content-security-policy'), /sandbox/);
+
+  // Picks: at most 3 per spot, reversible, visible to the player and at the desk.
+  for (const name of ['p-two', 'p-three', 'p-four']) {
+    const other = await f.register(name);
+    await f.photo(other.cookie, 'tingsong');
+  }
+  list = (await f.request('/api/staff/photos?spot=tingsong', { cookie: staff })).data;
+  const pick = (id, picked) =>
+    f.request(`/api/staff/photos/${id}`, { cookie: staff, data: { picked } });
+  for (const item of list.slice(0, 3)) assert.equal((await pick(item.id, true)).status, 200);
+  assert.equal((await pick(list[3].id, true)).status, 409);
+  assert.equal((await pick(list[0].id, false)).status, 200);
+  assert.equal((await pick(list[3].id, true)).status, 200);
+  assert.equal((await pick(list[3].id, true)).status, 200);
+  const picked = (await f.request('/api/staff/photos?spot=tingsong', { cookie: staff })).data;
+  assert.equal(picked.filter((item) => item.picked).length, 3);
+  // Another spot has its own three.
+  await f.photo(cookie, 'zhongda-lake');
+  const lake = (await f.request('/api/staff/photos?spot=zhongda-lake', { cookie: staff })).data;
+  assert.equal((await pick(lake[0].id, true)).status, 200);
+  const me = (await f.request('/api/me', { cookie })).data;
+  assert.deepEqual(me.photos['zhongda-lake'], { picked: true });
+  // A picked photographer gets a redemption code even below 6 stamps.
+  assert.ok(me.redeemCode);
+  const lookup = await f.request('/api/staff/lookup', {
+    cookie: staff,
+    data: { code: me.redeemCode },
   });
+  assert.ok(lookup.data.picked.includes('zhongda-lake'));
+});
+
+test('a v1 database migrates: review-only photos dropped, old receipts kept aside, old spot ids no longer count', async (t) => {
+  const f = await fixture(t);
+  const player = await f.register();
   const db = new DatabaseSync(f.options.database);
   t.after(() => db.close());
-  db.prepare("UPDATE photos SET submitted_at='2000-01-01'").run();
-  assert.deepEqual((await f.request('/api/staff/photos', { cookie: staff })).data, []);
-  assert.equal(db.prepare('SELECT image,status FROM photos').get().status, 'rejected');
-  assert.equal(db.prepare('SELECT image FROM photos').get().image, null);
+  // Rebuild the v1 shape by hand, with an old prototype stamp and a pending photo.
+  db.exec(
+    "DROP TABLE redemptions; CREATE TABLE redemptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id), redeemed_at TEXT NOT NULL, reviewer TEXT NOT NULL, stamp_count INTEGER NOT NULL); DROP TABLE photos; CREATE TABLE photos (id TEXT PRIMARY KEY, image BLOB); INSERT INTO photos VALUES ('p', x'00'); PRAGMA user_version=1",
+  );
+  db.prepare("INSERT INTO redemptions VALUES ('old',?,'2026-01-01','staff',3)").run(
+    player.data.user.id,
+  );
+  db.prepare("INSERT INTO stamps VALUES (?,'lake','2026-01-01','quiz')").run(player.data.user.id);
+  await f.restart();
+  assert.equal(db.prepare('SELECT count(*) AS n FROM photos').get().n, 0);
+  assert.ok(db.prepare("SELECT 1 FROM pragma_table_info('photos') WHERE name='picked_at'").get());
+  assert.equal(db.prepare('SELECT count(*) AS n FROM redemptions_v1').get().n, 1);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 2);
+  const me = (await f.request('/api/me', { cookie: player.cookie })).data;
+  assert.deepEqual(me.stamps, {});
+  assert.equal(me.prizes.meal.redemption, null);
+});
+
+test('expired sessions are rejected and staff password rotation revokes old sessions', async (t) => {
+  const f = await fixture(t);
+  const player = await f.register();
+  const staff = await f.staff();
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
   db.prepare('UPDATE sessions SET expires_at=0 WHERE user_id=?').run(player.data.user.id);
   assert.equal((await f.request('/api/me', { cookie: player.cookie })).status, 401);
   f.options.staffPassword = 'rotated-staff-password-42';
@@ -434,6 +488,72 @@ test('expired photos are removed, expired sessions rejected and staff password r
     ).status,
     200,
   );
+});
+
+test('behind a trusted proxy each client gets its own login allowance', async (t) => {
+  const f = await fixture(t);
+  let n = 0;
+  // A fresh username each time, so only the per-address limit is in play.
+  const attempt = (address) =>
+    f.request('/api/login', {
+      data: { username: `user-${n++}`, password: secret },
+      headers: { 'X-Forwarded-For': `203.0.113.9, 198.51.100.${address}` },
+    });
+  // Without trust, the header is ignored: every request counts against one address.
+  for (let i = 0; i < 300; i++) await attempt(i % 200);
+  assert.equal((await attempt(250)).status, 429);
+  f.options.trustProxy = true;
+  await f.restart();
+  for (let i = 0; i < 300; i++) assert.equal((await attempt(1)).status, 401);
+  assert.equal((await attempt(1)).status, 429);
+  assert.equal((await attempt(2)).status, 401);
+});
+
+test('unpicked photos expire after the retention period; picked ones stay', async (t) => {
+  const f = await fixture(t);
+  const player = await f.register();
+  const staff = await f.staff();
+  await f.photo(player.cookie, 'tingsong');
+  await f.photo(player.cookie, 'zhongda-lake');
+  const lake = (await f.request('/api/staff/photos?spot=zhongda-lake', { cookie: staff })).data;
+  await f.request(`/api/staff/photos/${lake[0].id}`, { cookie: staff, data: { picked: true } });
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  db.prepare("UPDATE photos SET submitted_at='2000-01-01'").run();
+  await f.restart();
+  assert.equal(db.prepare('SELECT count(*) AS n FROM photos').get().n, 2);
+  f.options.photoRetentionDays = 30;
+  await f.restart();
+  assert.deepEqual(
+    db
+      .prepare('SELECT spot_id FROM photos')
+      .all()
+      .map((row) => row.spot_id),
+    ['zhongda-lake'],
+  );
+  // The stamps earned with those photos stay.
+  assert.equal(
+    Object.keys((await f.request('/api/me', { cookie: player.cookie })).data.stamps).length,
+    2,
+  );
+});
+
+test('serves the build-time gzip copy when the browser accepts it', async (t) => {
+  const f = await fixture(t);
+  const dir = path.dirname(f.options.database);
+  await writeFile(path.join(dir, 'index.html.gz'), gzipSync('<html>packed</html>'));
+  const packed = await f.request('/game', { headers: { 'Accept-Encoding': 'gzip' } });
+  assert.equal(packed.headers.get('content-encoding'), 'gzip');
+  assert.equal(Buffer.from(packed.data).toString(), '<html>packed</html>');
+  const plain = await f.request('/game', { headers: { 'Accept-Encoding': 'identity' } });
+  assert.equal(plain.headers.get('content-encoding'), null);
+  assert.equal(Buffer.from(plain.data).toString(), '<html>app</html>');
+  assert.equal((await f.request('/index.html.gz')).status, 404);
+});
+
+test('a malformed path is a 404, not a server error', async (t) => {
+  const f = await fixture(t);
+  assert.equal((await f.request('/%E0%A4')).status, 404);
 });
 
 test('rate limits repeated login attempts and fails closed on unsafe deployment secrets', async (t) => {
@@ -451,7 +571,7 @@ test('rate limits repeated login attempts and fails closed on unsafe deployment 
   assert.equal(blocked.headers.get('retry-after'), '60');
   await assert.rejects(createApp({ ...f.options, origin: 'http://public.example' }), /HTTPS/);
   await assert.rejects(
-    createApp({ ...f.options, stampKeys: { ...stampKeys, gate: 'GATE-26' } }),
+    createApp({ ...f.options, stampKeys: { ...stampKeys, taichi: 'GATE-26' } }),
     /STAMP_KEYS/,
   );
 });

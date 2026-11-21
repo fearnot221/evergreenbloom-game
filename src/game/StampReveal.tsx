@@ -1,60 +1,81 @@
 import { useEffect, useRef, useState } from 'react';
+import { Petal, Squirrel } from '../components/motifs';
 import { PetalBurst } from '../components/PetalBurst';
 import { display } from '../data/display-copy';
 import type { StampSpot } from '../data/stamps';
-import { gsap, useGSAP } from '../motion/gsap';
+
+const SHOWER = 28;
 
 /**
- * 集章成功: the seal presses down, the scenery text unfolds, petals burst. A native
- * modal dialog, so focus, Escape and the backdrop behave as the menu does.
+ * After a task: first the spot's knowledge, then 集章成功 (the seal presses down and
+ * petals burst). `milestone` names a progress stop just reached; at the sakura stop the
+ * whole screen gets a petal shower. A native modal dialog, so focus, Escape and the
+ * backdrop behave natively. Reduced motion: no burst, no shower, same content.
  */
-export function StampReveal({ spot, onClose }: { spot: StampSpot | null; onClose: () => void }) {
+export function StampReveal({
+  spot,
+  milestone,
+  onClose,
+}: {
+  spot: StampSpot | null;
+  milestone: { at: number; label: string } | null;
+  onClose: () => void;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
-  const [burst, setBurst] = useState(0);
+  const [step, setStep] = useState<'intro' | 'stamp'>('intro');
 
   useEffect(() => {
-    if (spot && !dialog.current?.open) dialog.current?.showModal();
+    if (!spot) return;
+    setStep('intro');
+    if (!dialog.current?.open) dialog.current?.showModal();
   }, [spot]);
-
-  useGSAP(
-    () => {
-      if (!spot) return;
-      const mm = gsap.matchMedia();
-      mm.add('(prefers-reduced-motion: no-preference)', () => {
-        gsap
-          .timeline()
-          .from('.reveal-seal', {
-            scale: 1.8,
-            rotation: -14,
-            autoAlpha: 0,
-            duration: 0.42,
-            ease: 'power4.in',
-          })
-          .call(() => setBurst((n) => n + 1))
-          .from('.reveal-seal', { scale: 0.94, duration: 0.3, ease: 'back.out(3)' })
-          .from(
-            '.reveal-copy > *',
-            { y: 18, autoAlpha: 0, duration: 0.5, ease: 'power3.out', stagger: 0.07 },
-            '<',
-          );
-      });
-      return () => mm.revert();
-    },
-    { scope: dialog, dependencies: [spot], revertOnUpdate: true },
-  );
 
   return (
     <dialog ref={dialog} className="stamp-reveal" aria-labelledby="reveal-title" onClose={onClose}>
-      {spot && (
+      {spot && step === 'intro' && (
+        <div className="reveal-copy">
+          <p className="reveal-kicker">第 {spot.no} 景・景點介紹</p>
+          <h2 id="reveal-title">{spot.name}</h2>
+          <p className="reveal-intro">{spot.intro}</p>
+          <button type="button" className="button" onClick={() => setStep('stamp')}>
+            收下這個章
+          </button>
+        </div>
+      )}
+      {spot && step === 'stamp' && (
         <>
-          <PetalBurst play={burst} />
-          <div className="reveal-seal" aria-hidden="true">
+          {/* Remounts with the spot, so each stamp gets a fresh burst after the seal lands. */}
+          <PetalBurst key={spot.id} delay={0.42} />
+          {milestone?.label === '撒櫻花' && (
+            <div className="sakura-shower" aria-hidden="true">
+              {Array.from({ length: SHOWER }, (_, i) => (
+                <Petal
+                  // biome-ignore lint/suspicious/noArrayIndexKey: identical decorative petals.
+                  key={i}
+                  style={{
+                    left: `${(i * 37) % 100}%`,
+                    animationDelay: `${((i * 0.29) % 2.4).toFixed(2)}s`,
+                    animationDuration: `${3.2 + ((i * 0.41) % 2).toFixed(2)}s`,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+          <div className="reveal-seal cone" aria-hidden="true">
             <span className="display">{spot.name.slice(0, 2)}</span>
           </div>
+          <Squirrel className="reveal-squirrel" />
           <div className="reveal-copy">
             <p className="display reveal-kicker">{display.sections.stamped}</p>
             <h2 id="reveal-title">{spot.name}</h2>
-            <p>{spot.scenery}</p>
+            {milestone && (
+              <p className="reveal-milestone">
+                集滿 {milestone.at} 個章！
+                {milestone.label === '撒櫻花'
+                  ? '櫻花為你撒落。'
+                  : `可以到兌獎處${milestone.label}了。`}
+              </p>
+            )}
             <form method="dialog">
               <button type="submit" className="button">
                 收進集章冊

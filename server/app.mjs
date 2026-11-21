@@ -11,19 +11,35 @@ import { createServer } from 'node:http';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import { promisify } from 'node:util';
-import { createGzip } from 'node:zlib';
-import { stampSpots } from '../src/data/stamps.ts';
+import { prizes, prizeTiers, stampSpots } from '../src/data/stamps.ts';
 
 const scrypt = promisify(scryptCallback);
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 const token = () => randomBytes(32).toString('base64url');
 const date = () => new Date().toISOString();
 const MAX_PHOTO = 3 * 1024 * 1024;
+/** 每個拍照關卡最多選出幾張佳作（發市集餐券）。 */
+const PICKS_PER_SPOT = 3;
 const SESSION_AGE = 7 * 24 * 60 * 60;
 const COOKIE = 'songying-session';
 const PUBLIC_SPOTS = new Set(stampSpots.map((spot) => spot.id));
-// shortcut: the approved prototype has one quiz; add server-only answers when tasks change.
-const ANSWERS = { lake: 0 };
+// Server-only answers. Quiz: the correct option's index. Fill: accepted text, compared
+// after normalize(); a reply that contains it ("陳其寬校友") also counts.
+const QUIZ = { 'zhongda-road': 0, 'main-library': 1, baihua: 2, 'csrsr-station': 1, taichi: 2 };
+const FILL = { 'chungcheng-library': ['陳其寬'], auditorium: ['松果'] };
+const normalize = (value) =>
+  String(value)
+    .normalize('NFKC')
+    .replace(/[\s\p{P}\p{S}]/gu, '')
+    .toLowerCase();
+const fillMatches = (id, value) => {
+  if (typeof value !== 'string' || value.length > 40) return false;
+  const reply = normalize(value);
+  return FILL[id].some(
+    // Room for a short sentence around the answer, not for a list of guesses.
+    (answer) => reply.includes(normalize(answer)) && reply.length <= answer.length + 16,
+  );
+};
 
 class HttpError extends Error {
   constructor(status, message) {
@@ -106,6 +122,11 @@ export async function createApp({
   staffPassword,
   stampKeys,
   staticDir = 'dist',
+  // Behind a reverse proxy every request comes from the proxy; the client's address is
+  // then the last X-Forwarded-For entry, which our own proxy appended.
+  trustProxy = false,
+  // Days to keep photos the organisers did not pick; 0 keeps them (date not yet set).
+  photoRetentionDays = 0,
 }) {
   const publicOrigin = new URL(origin);
   if (
@@ -132,18 +153,31 @@ export async function createApp({
   db.exec(
     'PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;',
   );
-  if (db.prepare('PRAGMA user_version').get().user_version > 1)
-    throw new Error('Database schema is newer than this server');
+  const version = db.prepare('PRAGMA user_version').get().user_version;
+  if (version > 2) throw new Error('Database schema is newer than this server');
   db.exec(
     [
       "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('player','staff')), redeem_code TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL)",
       'CREATE TABLE IF NOT EXISTS sessions (token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), expires_at INTEGER NOT NULL)',
       'CREATE INDEX IF NOT EXISTS sessions_user ON sessions(user_id)',
       'CREATE TABLE IF NOT EXISTS stamps (user_id TEXT NOT NULL REFERENCES users(id), spot_id TEXT NOT NULL, earned_at TEXT NOT NULL, method TEXT NOT NULL, PRIMARY KEY(user_id,spot_id))',
-      "CREATE TABLE IF NOT EXISTS photos (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), spot_id TEXT NOT NULL, image BLOB, mime TEXT NOT NULL, status TEXT NOT NULL CHECK(status IN ('pending','approved','rejected')), consent_at TEXT NOT NULL, submitted_at TEXT NOT NULL, reviewed_at TEXT, reviewer TEXT, UNIQUE(user_id,spot_id))",
-      'CREATE TABLE IF NOT EXISTS redemptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL UNIQUE REFERENCES users(id), redeemed_at TEXT NOT NULL, reviewer TEXT NOT NULL, stamp_count INTEGER NOT NULL)',
-      'CREATE INDEX IF NOT EXISTS photos_pending ON photos(status,submitted_at)',
-      'PRAGMA user_version=1',
+    ].join(';'),
+  );
+  // v2 (2026-11-12): v1 photos were consented for stamp review only, so that table and
+  // its images are dropped; v2 keeps photos for the organisers' best-photo selection.
+  // One redemption per account becomes one per prize tier; v1 receipts are kept,
+  // read-only, as redemptions_v1.
+  if (version === 1)
+    db.exec(
+      'BEGIN; DROP TABLE IF EXISTS photos; ALTER TABLE redemptions RENAME TO redemptions_v1; COMMIT',
+    );
+  db.exec(
+    [
+      "CREATE TABLE IF NOT EXISTS redemptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), tier TEXT NOT NULL CHECK(tier IN ('meal','merch')), redeemed_at TEXT NOT NULL, reviewer TEXT NOT NULL, stamp_count INTEGER NOT NULL, UNIQUE(user_id,tier))",
+      'CREATE INDEX IF NOT EXISTS redemptions_tier ON redemptions(tier)',
+      'CREATE TABLE IF NOT EXISTS photos (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), spot_id TEXT NOT NULL, image BLOB NOT NULL, mime TEXT NOT NULL, consent_at TEXT NOT NULL, submitted_at TEXT NOT NULL, picked_at TEXT, picked_by TEXT, UNIQUE(user_id,spot_id))',
+      'CREATE INDEX IF NOT EXISTS photos_spot ON photos(spot_id,submitted_at)',
+      'PRAGMA user_version=2',
     ].join(';'),
   );
   const transaction = (fn) => {
@@ -177,13 +211,14 @@ export async function createApp({
     });
   }
   const expirePhotos = () => {
-    db.prepare(
-      "UPDATE photos SET image=NULL,status='rejected',reviewed_at=?,reviewer='system:expiry' WHERE status='pending' AND submitted_at<?",
-    ).run(date(), new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString());
+    if (photoRetentionDays > 0)
+      db.prepare('DELETE FROM photos WHERE picked_at IS NULL AND submitted_at<?').run(
+        new Date(Date.now() - photoRetentionDays * 86400000).toISOString(),
+      );
   };
   expirePhotos();
-  const cleanup = setInterval(expirePhotos, 60 * 60 * 1000);
-  cleanup.unref();
+  const expiry = setInterval(expirePhotos, 60 * 60 * 1000);
+  expiry.unref();
   const dummyHash = await passwordHash(token());
   const root = path.resolve(staticDir);
   const buckets = new Map();
@@ -244,34 +279,62 @@ export async function createApp({
     if (user.role !== 'player') fail(403, '工作人員帳號不參加集章兌獎。');
     return user;
   };
-  const complete = (id) => {
-    const spots = new Set(
-      db
-        .prepare('SELECT spot_id FROM stamps WHERE user_id=?')
-        .all(id)
-        .map((row) => row.spot_id),
+  /** Stamps that count: only spots that exist now (renamed spots no longer count). */
+  const stampCount = (id) =>
+    db
+      .prepare('SELECT spot_id FROM stamps WHERE user_id=?')
+      .all(id)
+      .filter((row) => PUBLIC_SPOTS.has(row.spot_id)).length;
+  const left = (tier) =>
+    prizes[tier].stock -
+    db.prepare('SELECT count(*) AS n FROM redemptions WHERE tier=?').get(tier).n;
+  const prizeView = (user, count) =>
+    Object.fromEntries(
+      prizeTiers.map((tier) => [
+        tier,
+        {
+          eligible: count >= prizes[tier].need,
+          left: Math.max(0, left(tier)),
+          redemption:
+            db
+              .prepare('SELECT id,redeemed_at,reviewer FROM redemptions WHERE user_id=? AND tier=?')
+              .get(user.id, tier) ?? null,
+        },
+      ]),
     );
-    return [...PUBLIC_SPOTS].every((spot) => spots.has(spot));
+  const pickedSpots = (id) =>
+    db
+      .prepare('SELECT spot_id FROM photos WHERE user_id=? AND picked_at IS NOT NULL')
+      .all(id)
+      .map((row) => row.spot_id);
+  const view = (user) => {
+    const count = stampCount(user.id);
+    return {
+      user: { id: user.id, username: user.username, role: user.role },
+      stamps: Object.fromEntries(
+        db
+          .prepare('SELECT spot_id,earned_at FROM stamps WHERE user_id=?')
+          .all(user.id)
+          .filter((row) => PUBLIC_SPOTS.has(row.spot_id))
+          .map((row) => [row.spot_id, row.earned_at]),
+      ),
+      // Shown once there is anything to collect: a prize tier, or a picked photo.
+      redeemCode:
+        user.role === 'player' &&
+        (count >= Math.min(...prizeTiers.map((t) => prizes[t].need)) ||
+          pickedSpots(user.id).length > 0)
+          ? user.redeem_code
+          : null,
+      prizes: prizeView(user, count),
+      // Which of this player's photos the organisers picked (a market meal voucher each).
+      photos: Object.fromEntries(
+        db
+          .prepare('SELECT spot_id,picked_at FROM photos WHERE user_id=?')
+          .all(user.id)
+          .map((row) => [row.spot_id, { picked: row.picked_at !== null }]),
+      ),
+    };
   };
-  const view = (user) => ({
-    user: { id: user.id, username: user.username, role: user.role },
-    stamps: Object.fromEntries(
-      db
-        .prepare('SELECT spot_id,earned_at FROM stamps WHERE user_id=?')
-        .all(user.id)
-        .map((row) => [row.spot_id, row.earned_at]),
-    ),
-    photos: Object.fromEntries(
-      db
-        .prepare('SELECT spot_id,status FROM photos WHERE user_id=?')
-        .all(user.id)
-        .map((row) => [row.spot_id, row.status]),
-    ),
-    redeemCode: user.role === 'player' && complete(user.id) ? user.redeem_code : null,
-    redemption:
-      db.prepare('SELECT id,redeemed_at,reviewer FROM redemptions WHERE user_id=?').get(user.id) ??
-      null,
-  });
   const writeStamp = (id, spot) =>
     db
       .prepare('INSERT INTO stamps VALUES (?,?,?,?) ON CONFLICT(user_id,spot_id) DO NOTHING')
@@ -288,14 +351,16 @@ export async function createApp({
     res.end(JSON.stringify(value));
   };
   async function api(req, res, url) {
-    expirePhotos();
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
-    if (req.method === 'POST' && req.headers.origin !== origin)
-      fail(403, '請從集章 App 送出操作。');
-    const ip = req.socket.remoteAddress;
+    if (req.method === 'POST' && req.headers.origin !== origin) fail(403, '請從集章頁面送出操作。');
+    const ip =
+      (trustProxy && req.headers['x-forwarded-for']?.split(',').at(-1)?.trim()) ||
+      req.socket.remoteAddress;
+    // Per address: generous, since campus Wi-Fi puts many players behind one IP. The
+    // per-username limit on login is what stops password guessing.
     if (url.pathname === '/api/register' && req.method === 'POST') {
-      limited(`auth:${ip}`, 60);
+      limited(`auth:${ip}`, 300);
       const input = await jsonBody(req);
       const name = username(input.username);
       const secret = password(input.password);
@@ -320,7 +385,7 @@ export async function createApp({
       return send(res, 201, view(db.prepare('SELECT * FROM users WHERE id=?').get(id)));
     }
     if (url.pathname === '/api/login' && req.method === 'POST') {
-      limited(`auth:${ip}`, 60);
+      limited(`auth:${ip}`, 300);
       const input = await jsonBody(req);
       const name = username(input.username);
       const secret = password(input.password);
@@ -351,52 +416,67 @@ export async function createApp({
       limited(`claim:${user.id}`, 60);
       const input = await jsonBody(req);
       const spot = claimSpot(input.key, claim[1]);
-      if (spot.method === 'photo') fail(400, '拍照任務需要上傳並通過審核。');
-      if (spot.method === 'quiz' && input.answer !== ANSWERS[spot.id])
-        fail(400, '答案不正確，請再讀一次說明牌。');
+      if (spot.method === 'photo') fail(400, '拍照任務請上傳照片。');
+      if (spot.method === 'quiz' && input.answer !== QUIZ[spot.id])
+        fail(400, '答錯了，再想想看，重新作答一次。');
+      if (spot.method === 'fill' && !fillMatches(spot.id, input.answer))
+        fail(400, '答案不對喔。可以回上一步重看說明，再作答一次。');
       writeStamp(user.id, spot);
       return send(res, 200, view(user));
     }
+    // Photo task: the upload completes the stamp at once (no review gate) and is kept,
+    // with consent, only for the organisers' best-photo selection.
     const upload = url.pathname.match(/^\/api\/claims\/([a-z-]+)\/photo$/);
     if (upload && req.method === 'POST') {
       const user = playerFor(req);
       limited(`claim:${user.id}`, 20);
       const spot = claimSpot(req.headers['x-stamp-key'], upload[1]);
-      if (spot.method !== 'photo' || req.headers['x-photo-consent'] !== 'yes')
-        fail(400, '請先同意照片上傳與審核用途。');
-      if (db.prepare('SELECT 1 FROM stamps WHERE user_id=? AND spot_id=?').get(user.id, spot.id))
-        fail(409, '這個章已完成。');
+      if (spot.method !== 'photo') fail(400, '這個集章點不是拍照任務。');
+      if (req.headers['x-photo-consent'] !== 'yes') fail(400, '請先同意照片的保存與使用方式。');
+      const stamped = () =>
+        db.prepare('SELECT 1 FROM stamps WHERE user_id=? AND spot_id=?').get(user.id, spot.id);
+      if (stamped()) fail(409, '這個章已完成。');
       const bytes = await body(req, MAX_PHOTO);
-      if (db.prepare('SELECT 1 FROM stamps WHERE user_id=? AND spot_id=?').get(user.id, spot.id))
-        fail(409, '這個章已完成。');
       const mime = imageType(bytes);
       if (req.headers['content-type'] !== mime) fail(415, '照片格式與內容不符。');
-      const now = date();
-      db.prepare(
-        "INSERT INTO photos VALUES (?,?,?,?,?,'pending',?,?,NULL,NULL) ON CONFLICT(user_id,spot_id) DO UPDATE SET id=excluded.id,image=excluded.image,mime=excluded.mime,status='pending',consent_at=excluded.consent_at,submitted_at=excluded.submitted_at,reviewed_at=NULL,reviewer=NULL",
-      ).run(randomUUID(), user.id, spot.id, bytes, mime, now, now);
-      return send(res, 202, view(user));
+      transaction(() => {
+        if (stamped()) fail(409, '這個章已完成。');
+        const now = date();
+        db.prepare('INSERT INTO photos VALUES (?,?,?,?,?,?,?,NULL,NULL)').run(
+          randomUUID(),
+          user.id,
+          spot.id,
+          bytes,
+          mime,
+          now,
+          now,
+        );
+        writeStamp(user.id, spot);
+      });
+      return send(res, 200, view(user));
     }
     if (url.pathname.startsWith('/api/staff/')) {
       const staff = staffFor(req);
-      limited(`staff:${staff.id}`, 120);
+      const photo = url.pathname.match(/^\/api\/staff\/photos\/([a-f0-9-]+)$/);
+      // Gallery images load as the staff member scrolls; only actions count to the limit.
+      if (!(photo && req.method === 'GET')) limited(`staff:${staff.id}`, 120);
       if (url.pathname === '/api/staff/photos' && req.method === 'GET') {
+        const spot = stampSpots.find((item) => item.id === url.searchParams.get('spot'));
+        if (spot?.method !== 'photo') fail(400, '請選擇拍照關卡。');
         return send(
           res,
           200,
           db
             .prepare(
-              "SELECT photos.id,photos.spot_id,photos.submitted_at,users.username FROM photos JOIN users ON users.id=photos.user_id WHERE status='pending' ORDER BY submitted_at LIMIT 100",
+              'SELECT photos.id,users.username,submitted_at,picked_at IS NOT NULL AS picked FROM photos JOIN users ON users.id=photos.user_id WHERE spot_id=? ORDER BY picked DESC,submitted_at DESC LIMIT 500',
             )
-            .all(),
+            .all(spot.id)
+            .map((row) => ({ ...row, picked: row.picked === 1 })),
         );
       }
-      const photo = url.pathname.match(/^\/api\/staff\/photos\/([a-f0-9-]+)$/);
       if (photo && req.method === 'GET') {
-        const row = db
-          .prepare("SELECT image,mime FROM photos WHERE id=? AND status='pending'")
-          .get(photo[1]);
-        if (!row?.image) fail(404, '照片不存在或已完成審核。');
+        const row = db.prepare('SELECT image,mime FROM photos WHERE id=?').get(photo[1]);
+        if (!row) fail(404, '找不到這張照片。');
         res.writeHead(200, {
           'Content-Type': row.mime,
           'Content-Security-Policy': "default-src 'none'; sandbox",
@@ -406,18 +486,21 @@ export async function createApp({
       }
       if (photo && req.method === 'POST') {
         const input = await jsonBody(req);
-        if (typeof input.approve !== 'boolean') fail(400, '請選擇通過或退回。');
+        if (typeof input.picked !== 'boolean') fail(400, '請選擇要選入或取消。');
         transaction(() => {
-          const row = db
-            .prepare("SELECT * FROM photos WHERE id=? AND status='pending'")
-            .get(photo[1]);
-          if (!row) fail(409, '照片已由其他工作人員處理。');
-          const spot = stampSpots.find((item) => item.id === row.spot_id);
-          if (spot?.method !== 'photo') fail(409, '集章點設定已變更，無法審核。');
-          if (input.approve) writeStamp(row.user_id, spot);
-          db.prepare(
-            'UPDATE photos SET status=?,image=NULL,reviewed_at=?,reviewer=? WHERE id=?',
-          ).run(input.approve ? 'approved' : 'rejected', date(), staff.username, row.id);
+          const row = db.prepare('SELECT spot_id,picked_at FROM photos WHERE id=?').get(photo[1]);
+          if (!row) fail(404, '找不到這張照片。');
+          if (input.picked && row.picked_at === null) {
+            const n = db
+              .prepare('SELECT count(*) AS n FROM photos WHERE spot_id=? AND picked_at IS NOT NULL')
+              .get(row.spot_id).n;
+            if (n >= PICKS_PER_SPOT) fail(409, `每個拍照關卡最多選 ${PICKS_PER_SPOT} 張。`);
+          }
+          db.prepare('UPDATE photos SET picked_at=?,picked_by=? WHERE id=?').run(
+            input.picked ? date() : null,
+            input.picked ? staff.username : null,
+            photo[1],
+          );
         });
         return send(res, 200, { ok: true });
       }
@@ -429,36 +512,49 @@ export async function createApp({
           .prepare('SELECT * FROM users WHERE redeem_code=? AND role=?')
           .get(input.code, 'player');
         if (!user) fail(404, '找不到此兌獎碼。');
+        const count = stampCount(user.id);
         return send(res, 200, {
           username: user.username,
-          complete: complete(user.id),
-          redemption: view(user).redemption,
+          count,
+          prizes: prizeView(user, count),
+          picked: pickedSpots(user.id),
         });
       }
       if (url.pathname === '/api/staff/redeem' && req.method === 'POST') {
         const input = await jsonBody(req);
         if (typeof input.code !== 'string' || !/^[A-F0-9]{24}$/.test(input.code))
           fail(400, '兌獎碼格式不正確。');
+        if (!prizeTiers.includes(input.tier)) fail(400, '請選擇要兌換的獎品。');
+        const prize = prizes[input.tier];
         const receipt = transaction(() => {
           const user = db
             .prepare("SELECT * FROM users WHERE redeem_code=? AND role='player'")
             .get(input.code);
           if (!user) fail(404, '找不到此兌獎碼。');
-          if (!complete(user.id)) fail(409, '尚未集滿全部章，無法兌獎。');
-          if (db.prepare('SELECT 1 FROM redemptions WHERE user_id=?').get(user.id))
-            fail(409, '此帳號已兌獎，不能重複領取。');
+          const count = stampCount(user.id);
+          if (count < prize.need) fail(409, `集滿 ${prize.need} 個章才能兌換${prize.name}。`);
+          if (
+            db
+              .prepare('SELECT 1 FROM redemptions WHERE user_id=? AND tier=?')
+              .get(user.id, input.tier)
+          )
+            fail(409, `此帳號已兌換過${prize.name}，不能重複領取。`);
+          // Inside the transaction, so the 100th and 101st requests cannot both pass.
+          if (left(input.tier) <= 0) fail(409, `${prize.name}已全數兌換完畢。`);
           const record = {
             id: randomUUID(),
             username: user.username,
+            tier: input.tier,
             redeemed_at: date(),
             reviewer: staff.username,
           };
-          db.prepare('INSERT INTO redemptions VALUES (?,?,?,?,?)').run(
+          db.prepare('INSERT INTO redemptions VALUES (?,?,?,?,?,?)').run(
             record.id,
             user.id,
+            record.tier,
             record.redeemed_at,
             record.reviewer,
-            PUBLIC_SPOTS.size,
+            count,
           );
           return record;
         });
@@ -470,7 +566,7 @@ export async function createApp({
           200,
           db
             .prepare(
-              'SELECT redemptions.id,users.username,redeemed_at,reviewer,stamp_count FROM redemptions JOIN users ON users.id=redemptions.user_id ORDER BY redeemed_at DESC LIMIT 100',
+              'SELECT redemptions.id,users.username,tier,redeemed_at,reviewer,stamp_count FROM redemptions JOIN users ON users.id=redemptions.user_id ORDER BY redeemed_at DESC LIMIT 100',
             )
             .all(),
         );
@@ -502,7 +598,12 @@ export async function createApp({
         res.writeHead(200, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
         return res.end(req.method === 'HEAD' ? undefined : 'ok');
       }
-      const decoded = decodeURIComponent(url.pathname);
+      let decoded = '';
+      try {
+        decoded = decodeURIComponent(url.pathname);
+      } catch {
+        fail(404, '找不到檔案。');
+      }
       if (decoded.split('/').some((part) => part.startsWith('.')) || decoded.includes('\0'))
         fail(404, '找不到檔案。');
       let file = path.resolve(root, `.${decoded}`);
@@ -512,7 +613,10 @@ export async function createApp({
         info = await stat(file);
       } catch {}
       if (!info?.isFile()) {
-        if (!/^\/(?:game|play|staff)?\/?$/.test(decoded) && !/^\/stamp\/[a-z-]+\/?$/.test(decoded))
+        if (
+          !/^\/(?:game|map|play|staff)?\/?$/.test(decoded) &&
+          !/^\/stamp\/[a-z-]+\/?$/.test(decoded)
+        )
           fail(404, '找不到檔案。');
         file = path.join(root, 'index.html');
         info = await stat(file);
@@ -528,22 +632,20 @@ export async function createApp({
         res.setHeader('Content-Length', info.size);
         return res.end();
       }
+      // Gzip copies are made at build time (scripts/precompress.mjs); never on request.
+      const gzip = /\bgzip\b/.test(req.headers['accept-encoding'] ?? '');
+      const packed = gzip ? await stat(`${file}.gz`).catch(() => null) : null;
+      if (packed) {
+        res.setHeader('Content-Encoding', 'gzip');
+        file = `${file}.gz`;
+        info = packed;
+      }
+      if (['.html', '.js', '.css', '.json', '.svg', '.webmanifest'].includes(ext))
+        res.setHeader('Vary', 'Accept-Encoding');
+      res.setHeader('Content-Length', info.size);
       const stream = createReadStream(file);
       stream.on('error', () => res.destroy());
-      if (
-        /\b(gzip)\b/.test(req.headers['accept-encoding'] ?? '') &&
-        ['.html', '.js', '.css', '.json', '.svg'].includes(ext)
-      ) {
-        res.setHeader('Content-Encoding', 'gzip');
-        res.setHeader('Vary', 'Accept-Encoding');
-        stream
-          .pipe(createGzip())
-          .on('error', () => res.destroy())
-          .pipe(res);
-      } else {
-        res.setHeader('Content-Length', info.size);
-        stream.pipe(res);
-      }
+      stream.pipe(res);
     } catch (error) {
       if (res.headersSent) {
         res.destroy();
@@ -562,7 +664,7 @@ export async function createApp({
   return {
     server,
     close: () => {
-      clearInterval(cleanup);
+      clearInterval(expiry);
       db.close();
     },
   };

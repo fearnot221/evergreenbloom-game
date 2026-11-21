@@ -6,8 +6,8 @@
   "start_url": "/game",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#f6f8fb",
-  "theme_color": "#f6f8fb",
+  "background_color": "#50417e",
+  "theme_color": "#50417e",
   "description": "第二屆松櫻祭實景集章遊戲原型。圖示非官方標誌。",
   "icons": [
     {
@@ -35,7 +35,7 @@
       "url": "/game"
     },
     {
-      "name": "安裝與說明",
+      "name": "遊戲玩法",
       "url": "/play"
     }
   ]

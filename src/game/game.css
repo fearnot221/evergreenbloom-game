@@ -1,211 +1,671 @@
-/* 集章冊 (installed app only) ------------------------------------------------------- */
-.challenge {
-  display: grid;
-  gap: var(--space-4);
-  justify-items: start;
-  padding: var(--space-6);
-  border-top: 3px solid var(--accent);
-  background: var(--bg-2);
+/* 集章冊 and 工作人員 ------------------------------------------------------------ */
+.account-bar {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
 }
 
-.challenge h2 {
-  font-size: var(--step-3);
-  font-weight: 800;
+.account-name {
+  margin-inline-end: auto;
+  font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
-.quiz,
-.photo-task {
+.account-bar .button {
+  min-height: 40px;
+  padding-inline: var(--space-4);
+  box-shadow: 0 3px 0 var(--ink);
+}
+
+/* The task in hand: a blush ticket with its method seal. */
+.task {
+  position: relative;
   display: grid;
   gap: var(--space-3);
-  justify-items: start;
+  padding: var(--space-5);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
 }
 
-.quiz fieldset {
+.task-seal {
+  position: absolute;
+  top: var(--space-4);
+  right: var(--space-4);
   display: grid;
-  gap: var(--space-2);
-  border: 0;
-  padding: 0;
+  place-items: center;
+  inline-size: 3.5rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: var(--sakura);
+  color: var(--cream);
+  font-size: 1.6rem;
+  rotate: 8deg;
 }
 
-.quiz legend {
-  margin-bottom: var(--space-2);
+.task-method {
+  padding-inline-end: 4rem;
+  color: var(--rose-text);
   font-weight: 800;
 }
 
+.task h2 {
+  padding-inline-end: 4rem;
+  font-size: var(--step-3);
+}
+
+.task-form,
+.task-form fieldset {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.task-form > .button,
+.task-form > .photo-pick {
+  justify-self: start;
+}
+
+.task-prompt {
+  padding: 0;
+  font-size: var(--step-1);
+  font-weight: 800;
+}
+
+.task-step {
+  color: var(--rose-text);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+/* The passage to read before answering: set like a printed card. */
+.passage {
+  padding: var(--space-4);
+  border-radius: var(--radius-s);
+  background: white;
+  line-height: 1.9;
+}
+
+.task-error {
+  color: var(--rose-text);
+  font-weight: 800;
+}
+
+.task-error:empty {
+  display: none;
+}
+
+.option-letter {
+  flex: none;
+  display: grid;
+  place-items: center;
+  inline-size: 1.6rem;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: var(--sky);
+  color: var(--cream);
+  font-size: 0.8rem;
+}
+
+.quiz-option input {
+  position: absolute;
+  opacity: 0;
+}
+
+.quiz-option:has(input:focus-visible) {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.photo-preview {
+  inline-size: 100%;
+  max-block-size: 22rem;
+  object-fit: contain;
+  border-radius: var(--radius-s);
+  background: white;
+}
+
+/* Answers and consent: whole-row choices that light up star-yellow. */
 .quiz-option,
 .consent {
   display: flex;
   gap: var(--space-3);
-  align-items: center;
-  min-height: 44px;
+  align-items: flex-start;
+  position: relative;
+  min-height: 48px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-s);
+  background: white;
+  font-weight: 400;
+  cursor: pointer;
+  transition: background-color var(--dur-quick) var(--ease-out);
 }
 
-.quiz-option input,
-.consent input {
-  inline-size: 1.25rem;
-  block-size: 1.25rem;
-  accent-color: var(--accent);
+.quiz-option:has(input:checked),
+.consent:has(input:checked) {
+  background: var(--star);
 }
 
-.quiz-error {
-  min-height: 1.5em;
-  color: var(--accent);
+/* Progress in the title band: the count, a bar, and its three stops. */
+.progress {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: min(100%, 28rem);
+  margin-top: var(--space-3);
+  padding-bottom: 2.4rem;
+}
+
+.progress-count {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--star);
+}
+
+.progress-count .display {
+  font-size: 3rem;
+  line-height: 1;
+}
+
+.progress-total {
+  color: var(--on-sky);
   font-weight: 700;
 }
 
-.button.is-disabled {
-  cursor: not-allowed;
+.progress-bar {
+  position: relative;
+  block-size: 0.75rem;
+  border-radius: 999px;
+  background: rgb(253 248 234 / 0.18);
+}
+
+.progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  inline-size: calc(var(--p) * 100%);
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--blush), var(--sakura));
+  transition: inline-size 600ms var(--ease-out);
+}
+
+.progress-stop {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--at) * 100%);
+  display: grid;
+  justify-items: center;
+  translate: -50% -0.8rem;
+}
+
+.progress-stop:last-child {
+  justify-items: end;
+  translate: -88% -0.8rem;
+}
+
+.progress-stop-at {
+  display: grid;
+  place-items: center;
+  inline-size: 1.6rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: rgb(253 248 234 / 0.35);
+  color: var(--ink);
+  font-size: 0.75rem;
+}
+
+.progress-stop.is-reached .progress-stop-at {
+  background: var(--star);
+}
+
+.progress-stop-label {
+  color: var(--on-sky);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* The book: one page of ten seals, five across; a tap opens the spot's sheet. */
+.book {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.seal-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-1);
+  inline-size: 100%;
+}
+
+.seal-tile {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  inline-size: 100%;
+  min-block-size: 44px;
+  padding: var(--space-1) 0;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: none;
+  color: var(--ink);
+}
+
+.tile-seal {
+  display: grid;
+  place-items: center;
+  inline-size: min(100%, 3.6rem);
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: rgb(40 38 98 / 0.08);
+  color: rgb(40 38 98 / 0.4);
+  font-size: 1.15rem;
+  transition: scale var(--dur-press) var(--ease-out);
+}
+
+.seal-tile.is-done .tile-seal {
+  background: var(--sakura);
+  color: var(--cream);
+  font-size: 1rem;
+  rotate: -6deg;
+}
+
+.seal-tile:active .tile-seal {
+  scale: 0.94;
+}
+
+.tile-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.seal-tile:not(.is-done) .tile-name {
+  color: var(--fg-soft);
+}
+
+/* The spot sheet: rises from the bottom on phones, a centred card on wide screens. */
+.spot-sheet {
+  inline-size: min(30rem, 100vw);
+  max-inline-size: 100vw;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-l);
+  background: var(--grain), var(--surface);
+  color: var(--ink);
+}
+
+.spot-sheet::backdrop {
+  background: var(--scrim);
+}
+
+@media (max-width: 40rem) {
+  .spot-sheet {
+    inline-size: 100vw;
+    margin: auto 0 0;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+  }
+
+  .spot-sheet[open] {
+    animation: sheet-rise var(--dur-quick) var(--ease-out);
+  }
+}
+
+@keyframes sheet-rise {
+  from {
+    translate: 0 30%;
+    opacity: 0;
+  }
+}
+
+.sheet-body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--gutter) max(var(--space-6), env(safe-area-inset-bottom));
+}
+
+.sheet-head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.sheet-seal {
+  display: grid;
+  place-items: center;
+  inline-size: 3.4rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: rgb(40 38 98 / 0.08);
+  color: rgb(40 38 98 / 0.4);
+  font-size: 1.4rem;
+}
+
+.sheet-seal.is-done {
+  background: var(--sakura);
+  color: var(--cream);
+  font-size: 1.1rem;
+}
+
+.sheet-kicker {
+  color: var(--rose-text);
+  font-size: 0.875rem;
+  font-weight: 800;
+}
+
+.sheet-close {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.sheet-done {
+  display: inline-flex;
+  gap: 0.3em;
+  align-items: center;
+  color: var(--rose-text);
+  font-weight: 800;
+}
+
+.sheet-body > .button {
+  justify-self: start;
+}
+
+/* Typed code: folded away under the scan button until needed. */
+.code-more summary {
+  min-height: 44px;
+  padding-block: var(--space-2);
+  color: var(--rose-text);
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.code-more[open] summary {
+  margin-bottom: var(--space-2);
+}
+
+/* Account: a quiet row at the end, not the first thing on the page. */
+.account-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  align-items: center;
+  padding-top: var(--space-4);
+  border-top: 2px dashed var(--line);
+  color: var(--fg-soft);
+  font-size: 0.875rem;
+}
+
+.account-row .account-name {
+  margin-inline-end: auto;
+}
+
+.text-button {
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--rose-text);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.text-button:disabled {
   opacity: 0.45;
 }
 
-.photo-task .button:has(input:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
+/* Phones: the scan button floats above the tab bar, always in thumb reach. */
+@media (max-width: 40rem) {
+  .scan-button {
+    position: fixed;
+    left: 50%;
+    bottom: calc(5.25rem + env(safe-area-inset-bottom));
+    z-index: 25;
+    inline-size: max-content;
+    padding-inline: var(--space-6);
+    white-space: nowrap;
+    translate: -50% 0;
+    box-shadow:
+      0 4px 0 var(--ink),
+      0 0.75rem 1.5rem rgb(28 26 74 / 0.35);
+  }
+
+  .scan-button:active:not(:disabled) {
+    translate: -50% 3px;
+  }
+
+  /* Room under the last section so the floating button never covers it. */
+  .game:has(.scan-button) .sheet {
+    padding-bottom: 6rem;
+  }
 }
 
-.code-entry {
-  display: grid;
-  gap: var(--space-2);
-  max-width: 28rem;
-}
-
-.code-entry label {
-  font-weight: 800;
-}
-
-.code-row {
-  display: flex;
-  gap: var(--space-2);
-}
-
-.code-row input {
-  flex: 1;
-  min-width: 0;
-  min-height: 48px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line-strong);
-  background: var(--bg);
-  color: var(--fg);
-  font: inherit;
-  text-transform: uppercase;
-}
-
-.stamp-book {
-  display: grid;
-  gap: var(--space-5);
-  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
-}
-
-.stamp {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: center;
-  padding-block: var(--space-4);
-  border-top: 1px solid var(--line);
-}
-
-.stamp h2 {
-  font-size: var(--step-1);
-  font-weight: 800;
-}
-
-.stamp-seal {
-  display: grid;
-  place-items: center;
-  inline-size: 4.5rem;
-  block-size: 4.5rem;
-  border: 2px dashed var(--line-strong);
-  border-radius: 50%;
-  font-size: var(--step-1);
-  color: var(--accent);
-}
-
-.stamp.is-done .stamp-seal {
-  border: 3px double var(--accent);
-  rotate: -8deg;
-}
-
-.stamp .note svg {
-  vertical-align: -0.1em;
-  color: var(--accent);
-}
-
-/* Stamp reveal dialog. */
-.stamp-reveal {
-  inline-size: min(30rem, calc(100vw - 2 * var(--gutter)));
-  margin: auto;
-  padding: var(--space-7) var(--space-6) var(--space-6);
-  border: 0;
-  background: var(--bg);
-  color: var(--fg);
-  box-shadow: 0 0 0 1px var(--line);
-  overflow: clip;
-}
-
-.stamp-reveal::backdrop {
-  background: oklch(13% 0.022 170 / 0.6);
-}
-
-.stamp-reveal[open] {
-  display: grid;
-  gap: var(--space-6);
-  justify-items: center;
-  text-align: center;
-}
-
-.reveal-seal {
-  position: relative;
-  display: grid;
-  place-items: center;
-  inline-size: 7rem;
-  block-size: 7rem;
-  border: 4px double var(--accent);
-  border-radius: 50%;
-  rotate: -8deg;
-  font-size: var(--step-3);
-  color: var(--accent);
-}
-
-.reveal-copy {
-  position: relative;
-  z-index: 1;
+.prize {
   display: grid;
   gap: var(--space-3);
-  justify-items: center;
 }
 
-.reveal-kicker {
-  color: var(--accent);
-}
-
-.reveal-copy h2 {
-  font-size: var(--step-3);
+.sheet input.receipt-code {
+  font-size: var(--step-2);
   font-weight: 800;
+  letter-spacing: 0.12em;
+  text-align: center;
+  background: var(--star);
 }
 
-.account-fields {
+/* Staff */
+.lookup {
   display: grid;
-  gap: 1rem;
-  min-width: 0;
+  gap: var(--space-3);
+  justify-items: start;
+  margin-top: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+}
+
+.game section {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+/* The squirrel greets first-time players beside the sign-in title. */
+.auth {
+  position: relative;
+}
+
+.auth-squirrel {
+  position: absolute;
+  top: -0.5rem;
+  right: 0;
+  inline-size: clamp(5.5rem, 4rem + 6vw, 8rem);
+  pointer-events: none;
+}
+
+.auth h2 {
+  padding-inline-end: 6rem;
+}
+
+.book-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.stamp-no {
+  margin-inline-end: 0.4em;
+  color: var(--rose-text);
+  font-size: 0.85em;
+}
+
+/* Prizes: one card per tier, lit when it can be redeemed. */
+.prize-list {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  inline-size: 100%;
+}
+
+.prize-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+  border: var(--stroke) dashed var(--line);
+  border-radius: var(--radius-m);
+}
+
+.prize-card.is-open {
+  border: var(--stroke) solid var(--ink);
+  background: white;
+}
+
+.prize-card.is-done {
+  background: var(--surface-2);
+}
+
+.prize-card .button {
+  margin-top: var(--space-2);
+}
+
+.prize-need {
+  display: grid;
+  place-items: center;
+  inline-size: 2.6rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
+  background: var(--line);
+  color: var(--ink);
+}
+
+.prize-card.is-open .prize-need {
+  background: var(--star);
+}
+
+/* Staff: photo spots as tabs, photos as a picking grid. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.gallery {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 12rem), 1fr));
+  inline-size: 100%;
+}
+
+.gallery li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  border: var(--stroke) dashed var(--line);
+  border-radius: var(--radius-m);
+}
+
+.gallery li.is-picked {
+  border: var(--stroke) solid var(--ink);
+  background: var(--star);
+}
+
+.thumb {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  color: var(--fg-soft);
+  font-size: 0.875rem;
+}
+
+/* 掃描 QR Code: the main action of the stamp book, and its camera dialog. */
+.scan-button {
+  justify-self: stretch;
+  min-height: 56px;
+  font-size: var(--step-1);
+}
+
+.scanner {
+  inline-size: min(28rem, 100vw - 2 * var(--gutter));
+  margin: auto;
+  padding: var(--space-5);
   border: 0;
-  padding: 0;
+  border-radius: var(--radius-l);
+  background: var(--grain), var(--surface);
+  color: var(--ink);
 }
-.account-fields input:not([type="radio"], [type="checkbox"]),
-.receipt-code {
-  min-width: 0;
-  width: 100%;
-  max-width: 36rem;
-  box-sizing: border-box;
-  font: inherit;
+
+.scanner::backdrop {
+  background: var(--scrim);
 }
-.review-photo {
-  display: block;
-  width: 100%;
-  max-width: 30rem;
-  max-height: 24rem;
-  object-fit: contain;
+
+.scanner[open] {
+  display: grid;
+  gap: var(--space-4);
 }
-.game .note {
-  overflow-wrap: anywhere;
+
+.scanner-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.scanner-close {
+  display: grid;
+  place-items: center;
+  inline-size: 44px;
+  block-size: 44px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+.scanner-view {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  border-radius: var(--radius-m);
+  background: var(--night);
+}
+
+.scanner-view video {
+  inline-size: 100%;
+  block-size: 100%;
+  object-fit: cover;
+}
+
+/* The aiming frame: four hexagon-pink corners drawn with one dashed outline. */
+.scanner-frame {
+  position: absolute;
+  inset: 18%;
+  border: 3px dashed var(--sakura);
+  border-radius: var(--radius-m);
+  pointer-events: none;
+}
+
+/* Not yet collected: the cone's scales recede so the spot number leads. */
+.seal-tile:not(.is-done) .cone::after,
+.sheet-seal:not(.is-done)::after {
+  opacity: 0.4;
 }

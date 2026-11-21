@@ -1,683 +1,370 @@
-/* Shared components: plates, page head, cards, disclosures, chips, PWA panel, petals. */
+/* Shared components: buttons, links, fields, rows, the stamp dialog, petal burst. */
 
-.motif {
-  overflow: visible;
-}
-
-/* Campus plate -----------------------------------------------------------------------
-   The real campus framed like a photograph: the figure clips, .plate-inner is the
-   oversized layer the motion system scales. */
-.plate {
-  position: relative;
-  margin: 0;
-  overflow: clip;
-  aspect-ratio: 16 / 10;
-  background: var(--plate-paper);
-}
-
-.plate-inner {
-  position: absolute;
-  inset: -6%;
-  display: grid;
-  place-items: center;
-}
-
-.campus-sketch {
-  aspect-ratio: 1520 / 940;
-}
-
-.plate-campus .campus-sketch {
-  width: 92%;
-}
-
-.campus-sketch svg {
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-.sketch-water {
-  fill: var(--sakura);
-}
-
-.sketch-road {
-  fill: none;
-  stroke: var(--line-strong);
-  stroke-width: 2;
-}
-
-.sketch-building {
-  fill: var(--bg-2);
-  stroke: var(--fg);
-  stroke-width: 1.4;
-  stroke-linejoin: round;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  @supports (animation-timeline: view()) {
-    .sketch-building,
-    .sketch-road {
-      stroke-dasharray: 1;
-      animation: sketch-draw linear both;
-      animation-timeline: view();
-      animation-range: entry 10% cover 50%;
-    }
-  }
-}
-
-@keyframes sketch-draw {
-  from {
-    stroke-dashoffset: 1;
-  }
-  to {
-    stroke-dashoffset: 0;
-  }
-}
-
-/* 空心字 titles (Ink.tsx): an outline with a fill layer on top. -------------------- */
-.ink {
-  display: inline-grid;
-}
-
-.ink > * {
-  grid-area: 1 / 1;
-}
-
-.ink-outline {
-  color: transparent;
-  -webkit-text-stroke: 1.5px currentColor;
-}
-
-.ink-fill {
-  color: currentColor;
-}
-
-/* 上下裂開 (SplitSwap.tsx): each word is two clipped halves stacked on one cell. */
-.swap {
-  display: inline-grid;
-}
-
-.swap-word,
-.swap-word > * {
-  grid-area: 1 / 1;
-}
-
-.swap-word {
-  display: grid;
-}
-
-.swap-top {
-  clip-path: inset(0 0 50% 0);
-}
-
-.swap-bottom {
-  clip-path: inset(50% 0 0 0);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .swap-word + .swap-word {
-    display: none;
-  }
-}
-
-/* Inner-page head: a sakura field with a poster-scale title and a cropped bloom. */
-.page-head {
-  position: relative;
-  overflow: clip;
-  padding: calc(var(--header-h) + var(--space-9)) 0 var(--space-9);
-  background: var(--sakura);
-}
-
-.page-head-grid {
-  /* Above the flowing columns. */
-  position: relative;
-  z-index: 1;
-  display: grid;
-  gap: var(--space-6);
-}
-
-.page-title {
-  font-size: var(--step-4);
-  line-height: 1.1;
-  color: var(--fg);
-}
-
-.page-title.is-plain {
-  font-size: var(--step-3);
+/* Buttons: sticker pills with an ink edge that press down. ---------------------- */
+.button {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+  padding: 0 var(--space-5);
+  border: var(--stroke) solid var(--ink);
+  border-radius: 999px;
+  background: var(--star);
+  color: var(--ink);
   font-weight: 800;
-  line-height: 1.3;
+  text-decoration: none;
+  box-shadow: 0 4px 0 var(--ink);
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    box-shadow var(--dur-press) var(--ease-out);
 }
 
-.page-lede {
-  max-width: var(--measure);
-  font-size: var(--step-1);
-  line-height: 1.8;
+.button:active:not(:disabled) {
+  transform: translateY(3px);
+  box-shadow: 0 1px 0 var(--ink);
 }
 
-/* 直書逆走: three outlined columns of the title, flowing up and down in turn. */
-.head-flow {
-  position: absolute;
-  inset: 0 var(--gutter) 0 auto;
-  display: flex;
-  gap: 0.35em;
-  overflow: clip;
-  font-size: clamp(3rem, 1.5rem + 5vw, 7rem);
-  line-height: 1;
-  color: transparent;
-  -webkit-text-stroke: 1px var(--line-strong);
-  pointer-events: none;
+.button-ghost,
+.button-quiet {
+  background: var(--surface);
 }
 
-.head-flow-col {
-  writing-mode: vertical-rl;
-  white-space: nowrap;
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+  box-shadow: none;
 }
 
-.head-flow-col:nth-child(2) {
-  -webkit-text-stroke-color: var(--accent);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .head-flow-col {
-    animation: flow-up 60s linear infinite;
-  }
-
-  .head-flow-col:nth-child(even) {
-    animation-name: flow-down;
-    animation-duration: 75s;
+@media (hover: hover) {
+  .button:hover:not(:disabled) {
+    background: var(--blush);
   }
 }
 
-@keyframes flow-up {
-  to {
-    transform: translateY(-50%);
-  }
-}
-
-@keyframes flow-down {
-  from {
-    transform: translateY(-50%);
-  }
-}
-
-/* Wide screens: title and lede share the left 7 columns; the flow owns the right. */
-@media (min-width: 900px) {
-  /* Room for the flowing columns; a plain (dynamic) title has none and stays compact. */
-  .page-head:has(.head-flow) {
-    min-height: 34rem;
-    display: grid;
-    align-items: end;
-  }
-
-  .page-head-grid {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-  }
-
-  .page-head-grid > * {
-    grid-column: 1;
-  }
-}
-
-/* Phones: no room beside the text, so the flow stays a faint backdrop. */
-@media (max-width: 899px) {
-  .head-flow {
-    opacity: 0.18;
-  }
-}
-
-.page-body {
-  display: grid;
-  /* One viewport-bound track: full-bleed bands overflow it instead of widening it. */
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-8);
-  padding-top: var(--space-8);
-}
-
-@media (min-width: 900px) {
-  .page-body {
-    gap: var(--space-10);
-    padding-top: var(--space-9);
-  }
-}
-
-.page-body > section {
-  display: grid;
-  gap: var(--space-6);
-  align-content: start;
-}
-
-.section-title {
-  font-size: var(--step-3);
-}
-
-.section-lede {
-  max-width: var(--measure);
-  font-size: var(--step-1);
-  line-height: 1.8;
-}
-
-.sub-title {
-  margin-top: var(--space-6);
-  font-size: var(--step-2);
-  color: var(--accent);
+.text-link {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-height: 44px;
+  color: var(--rose-text);
+  font-weight: 700;
 }
 
 .actions {
   display: flex;
   flex-wrap: wrap;
+  gap: var(--space-3);
   align-items: center;
-  gap: var(--space-3) var(--space-4);
 }
 
-/* Event entry: an editorial block with a top rule, no box. ---------------------------- */
-.event-card {
-  position: relative;
+/* Fields ----------------------------------------------------------------------- */
+.account-fields {
   display: grid;
   gap: var(--space-3);
-  align-content: start;
-  height: 100%;
-  padding-top: var(--space-5);
-  border-top: 2px solid var(--fg);
+  min-width: 0;
+  border: 0;
+  padding: 0;
 }
 
-.event-meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-3);
-  color: var(--fg-soft);
-  font-size: var(--step--1);
-}
-
-.event-tag {
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.event-title {
-  font-size: var(--step-2);
+.account-fields label,
+.code-entry > label {
   font-weight: 800;
-  transition: color var(--dur-quick) ease;
 }
 
-.event-title a {
-  text-decoration: none;
+input:not([type="radio"], [type="checkbox"], [type="file"]) {
+  inline-size: 100%;
+  min-width: 0;
+  max-width: 36rem;
+  min-height: 48px;
+  padding: 0 var(--space-4);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-s);
+  background: white;
+  color: var(--ink);
 }
 
-/* The title link covers the entry; the map link stays on top. */
-.event-title a::after {
-  content: "";
-  position: absolute;
-  inset: 0;
+input:focus-visible {
+  outline: 3px solid var(--sakura);
+  outline-offset: 2px;
 }
 
-.event-card .text-link {
-  position: relative;
-  z-index: 1;
+input[type="radio"],
+input[type="checkbox"] {
+  flex: none;
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0.3em 0 0;
+  accent-color: var(--sakura);
+}
+
+.account-fields .button {
   justify-self: start;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .event-card:has(.event-title a:hover) .event-title {
-    color: var(--accent);
-  }
+.code-entry {
+  display: grid;
+  gap: var(--space-2);
 }
 
-.event-card:has(.event-title a:focus-visible) {
-  outline: 2px solid var(--focus);
-  outline-offset: 6px;
+.code-row {
+  display: flex;
+  gap: var(--space-2);
+  max-width: 30rem;
 }
 
-.event-title a:focus-visible {
-  outline: none;
+.code-row input {
+  flex: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
-/* Announcement posters ------------------------------------------------------------ */
-.announce-cards {
+/* Inline feedback: empty until there is something to say. */
+.quiz-error {
+  color: var(--rose-text);
+  font-weight: 800;
+}
+
+.quiz-error:empty,
+.status:empty {
+  display: none;
+}
+
+.status {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-s);
+  background: var(--surface-2);
+  font-weight: 700;
+}
+
+/* Rows: stacked records with a dashed rule between. ------------------------------ */
+.rows {
+  display: grid;
+}
+
+.rows > li {
+  display: grid;
+  gap: var(--space-2);
+  padding-block: var(--space-4);
+  border-top: 2px dashed var(--line);
+}
+
+.rows > li:first-child {
+  border-top: 0;
+}
+
+/* Stamp reveal: the badge colours, petals and a pressed seal. --------------------- */
+.stamp-reveal {
+  inline-size: min(26rem, 100vw - 2 * var(--gutter));
+  margin: auto;
+  padding: var(--space-7) var(--space-6) var(--space-6);
+  border: 0;
+  border-radius: var(--radius-l);
+  /* The dialog sits in the top layer, above the page's grain, so it carries its own. */
+  background: var(--grain), var(--surface);
+  color: var(--ink);
+  overflow: clip;
+}
+
+.stamp-reveal::backdrop {
+  background: var(--scrim);
+}
+
+.stamp-reveal[open] {
   display: grid;
   gap: var(--space-5);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  justify-items: center;
+  text-align: center;
 }
 
-.announce-card {
-  position: relative;
-  isolation: isolate;
+.reveal-seal {
   display: grid;
-  align-content: space-between;
-  gap: var(--space-8);
-  min-height: 19rem;
-  padding: var(--space-6);
-  overflow: clip;
+  place-items: center;
+  inline-size: 7rem;
+  aspect-ratio: 0.88;
+  clip-path: var(--hex);
   background: var(--sakura);
-  text-decoration: none;
+  color: var(--cream);
+  font-size: 2.2rem;
 }
 
-.announce-card-title {
-  font-size: var(--step-3);
-  line-height: 1.1;
+/* The squirrel cheers from beside the seal. */
+.reveal-squirrel {
+  inline-size: 7rem;
+  margin-top: calc(-1 * var(--space-6));
+  margin-inline-start: 8rem;
 }
 
-.announce-card-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  font-weight: 700;
-}
-
-.announce-card-art {
-  position: absolute;
-  z-index: -1;
-  right: -3rem;
-  bottom: -3rem;
-  width: 11rem;
-  transition: transform 900ms var(--ease-out);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .announce-card:hover .announce-card-art {
-    transform: rotate(40deg) scale(1.15);
-  }
-}
-
-/* Rows ------------------------------------------------------------------------------ */
-.rows {
-  border-top: 1px solid var(--line-strong);
-}
-
-.rows > * {
-  padding-block: var(--space-5);
-  border-bottom: 1px solid var(--line);
-}
-
-/* Disclosure ------------------------------------------------------------------------- */
-.disclosure {
-  border-bottom: 1px solid var(--line);
-}
-
-.disclosure summary {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  min-height: 56px;
-  font-weight: 700;
-  cursor: pointer;
-  list-style: none;
-}
-
-.disclosure summary::-webkit-details-marker {
-  display: none;
-}
-
-.disclosure summary svg {
-  flex: none;
-  color: var(--accent);
-  transition: transform var(--dur-quick) var(--ease-out);
-}
-
-.disclosure[open] summary svg {
-  transform: rotate(180deg);
-}
-
-.disclosure-body {
-  display: grid;
-  gap: var(--space-3);
-  padding-bottom: var(--space-5);
-  max-width: var(--measure);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .disclosure::details-content,
-  .timeline-item::details-content {
-    block-size: 0;
-    overflow: clip;
-    transition:
-      block-size 500ms var(--ease-out),
-      content-visibility 500ms allow-discrete;
-  }
-
-  .disclosure[open]::details-content,
-  .timeline-item[open]::details-content {
-    block-size: auto;
-  }
-}
-
-/* Filter chips ------------------------------------------------------------------------ */
-.filter-group {
-  display: grid;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  border: 0;
-}
-
-.filter-group legend {
-  margin-bottom: var(--space-2);
-  font-weight: 700;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.chip {
+.reveal-copy {
   position: relative;
-}
-
-.chip input {
-  position: absolute;
-  inset: 0;
-  opacity: 0;
-  margin: 0;
-  cursor: pointer;
-}
-
-.chip span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 0 var(--space-4);
-  border: 1px solid var(--line-strong);
-  font-weight: 700;
-  transition:
-    background-color var(--dur-quick) ease,
-    border-color var(--dur-quick) ease,
-    color var(--dur-quick) ease,
-    transform var(--dur-press) var(--ease-out);
-}
-
-.chip input:checked + span {
-  border-color: var(--fg);
-  background: var(--fg);
-  color: var(--bg);
-}
-
-.chip input:focus-visible + span {
-  outline: 2px solid var(--focus);
-  outline-offset: 3px;
-}
-
-.chip input:active + span {
-  transform: scale(0.97);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .chip input:not(:checked):hover + span {
-    background: var(--sakura);
-  }
-}
-
-/* PWA panel (footer) ---------------------------------------------------------------- */
-.pwa-panel {
+  z-index: 1;
   display: grid;
   gap: var(--space-3);
+  justify-items: center;
 }
 
-.pwa-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+.reveal-kicker {
+  color: var(--rose-text);
+  font-size: var(--step-1);
 }
 
-.pwa-status:empty {
-  display: none;
+.reveal-copy h2 {
+  font-size: var(--step-3);
 }
 
-.pwa-status {
-  font-weight: 700;
-  color: var(--accent);
-}
-
-/* Petal burst (PetalBurst.tsx) ------------------------------------------------------ */
 .petal-burst {
   position: absolute;
   inset: 0;
   display: grid;
   place-items: center;
-  overflow: visible;
+  container-type: size;
   pointer-events: none;
 }
 
 .burst-petal {
   grid-area: 1 / 1;
-  width: clamp(18px, 2.4vw, 32px);
-  visibility: hidden;
+  inline-size: 1.25rem;
+  opacity: 0;
+  animation:
+    burst-out 0.75s cubic-bezier(0.16, 1, 0.3, 1) var(--delay) both,
+    burst-fall var(--fall) ease-in calc(var(--delay) + 0.55s) forwards;
 }
 
-/* Petal fall (motion/PetalFall.tsx): behind the content, never over the header. */
-.petal-fall {
+/* Out from the centre, then down and away (the second animation picks up from the first). */
+@keyframes burst-out {
+  from {
+    opacity: 1;
+    transform: translate(0, 0) scale(0.2) rotate(0);
+  }
+  to {
+    opacity: 1;
+    transform: translate(calc(var(--x) * 100cqw), calc(var(--y) * 100cqh)) scale(var(--s))
+      rotate(var(--r));
+  }
+}
+
+@keyframes burst-fall {
+  from {
+    opacity: 1;
+    transform: translate(calc(var(--x) * 100cqw), calc(var(--y) * 100cqh)) scale(var(--s))
+      rotate(var(--r));
+  }
+  to {
+    opacity: 0;
+    transform: translate(calc(var(--x) * 100cqw + 2rem), calc(var(--y) * 100cqh + 60cqh))
+      scale(var(--s)) rotate(calc(var(--r) + 140deg));
+  }
+}
+
+/* 集章成功: the seal drops and presses, then the words rise in one after another. */
+.reveal-seal {
+  animation:
+    seal-drop 0.42s cubic-bezier(0.5, 0, 0.75, 0) both,
+    seal-settle 0.3s cubic-bezier(0.34, 1.8, 0.64, 1) 0.42s;
+}
+
+@keyframes seal-drop {
+  from {
+    opacity: 0;
+    transform: scale(1.8) rotate(-14deg);
+  }
+}
+
+@keyframes seal-settle {
+  from {
+    transform: scale(0.94);
+  }
+}
+
+.stamp-reveal .reveal-copy > * {
+  animation: copy-rise 0.5s var(--ease-out) both;
+}
+
+.stamp-reveal .reveal-copy > :nth-child(2) {
+  animation-delay: 0.07s;
+}
+
+.stamp-reveal .reveal-copy > :nth-child(3) {
+  animation-delay: 0.14s;
+}
+
+.stamp-reveal .reveal-copy > :nth-child(4) {
+  animation-delay: 0.21s;
+}
+
+@keyframes copy-rise {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .petal-burst {
+    display: none;
+  }
+}
+
+.reveal-intro {
+  text-align: start;
+  line-height: 1.9;
+}
+
+.reveal-milestone {
+  padding: var(--space-2) var(--space-4);
+  border-radius: 999px;
+  background: var(--star);
+  color: var(--ink);
+  font-weight: 800;
+}
+
+/* 集滿 3 個章: petals fall across the whole screen (fixed inside the top-layer dialog). */
+.sakura-shower {
   position: fixed;
   inset: 0;
-  z-index: -1;
-  overflow: clip;
+  overflow: hidden;
   pointer-events: none;
-  visibility: hidden;
 }
 
-.fall-petal {
+.sakura-shower .petal {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: clamp(16px, 1.6vw, 24px);
-  opacity: 0.9;
+  top: -3rem;
+  inline-size: 1.4rem;
+  animation: shower-fall linear both;
 }
 
-/* A notice belongs to the content right after it. */
-.page-body > .notice {
-  margin-bottom: calc(var(--space-5) - var(--space-8));
-}
-
-@media (min-width: 900px) {
-  .page-body > .notice {
-    margin-bottom: calc(var(--space-6) - var(--space-10));
-  }
-}
-
-/* Bands (Bands.tsx): 跑馬燈 / 斜線帶 / 封鎖膠帶. ------------------------------------- */
-.bands {
-  display: grid;
-  overflow: clip;
-  pointer-events: none;
-}
-
-.band-row {
-  display: flex;
-  width: max-content;
-  white-space: nowrap;
-  line-height: 1.15;
-}
-
-.band-row.is-outline {
-  color: transparent;
-  -webkit-text-stroke: 1.5px var(--accent);
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .band-row {
-    animation: band-run var(--seconds) linear infinite;
-    animation-direction: var(--direction);
-  }
-}
-
-@keyframes band-run {
+@keyframes shower-fall {
   to {
-    transform: translateX(-50%);
+    translate: 4rem 110vh;
+    rotate: 540deg;
   }
 }
 
-.bands.is-stack {
-  gap: var(--space-2);
-  margin-inline: calc(-1 * var(--gutter));
-  font-size: clamp(2.2rem, 1rem + 5vw, 6rem);
+@media (prefers-reduced-motion: reduce) {
+  .sakura-shower {
+    display: none;
+  }
 }
 
-.bands.is-stack .band-row:nth-child(2) {
-  font-size: 0.55em;
-  color: var(--fg-soft);
+/* 章 = 松果: every stamp seal takes a chubby pine-cone shape. Doubled class to win over
+   the seals' own sizing rules; the scale lines sit in ::after so fills can stay shorthand. */
+.cone.cone {
+  position: relative;
+  /* Its own stacking context, so the scale lines (z-index -1) sit over the fill but
+     under the text. */
+  isolation: isolate;
+  aspect-ratio: 100 / 112;
+  padding-top: 11%;
+  clip-path: none;
+  -webkit-mask: var(--cone) center / 100% 100% no-repeat;
+  mask: var(--cone) center / 100% 100% no-repeat;
 }
 
-/* Two bands tilted against each other: an X across the section. */
-.bands.is-cross,
-.bands.is-tape {
+.cone.cone::after {
+  content: "";
   position: absolute;
   inset: 0;
-  align-content: center;
-  font-size: clamp(1.6rem, 0.8rem + 3vw, 3.4rem);
-}
-
-.bands.is-cross .band-row,
-.bands.is-tape .band-row {
-  grid-area: 1 / 1;
-  margin-left: -10vw;
-  /* Rows are thousands of pixels wide: tilt them around the viewport's middle (the
-     row starts at -10vw), or the visible part swings out of the strip. */
-  transform-origin: 60vw 50%;
-}
-
-.bands.is-cross .band-row:first-child,
-.bands.is-tape .band-row:first-child {
-  rotate: -7deg;
-}
-
-.bands.is-cross .band-row:last-child,
-.bands.is-tape .band-row:last-child {
-  rotate: 6deg;
-}
-
-.bands.is-cross .band-row {
-  color: var(--sakura-deep);
-}
-
-.bands.is-tape .band-row {
-  padding-block: 0.15em;
-  background: var(--fg);
-  color: var(--sakura);
-}
-
-.bands.is-tape .band-row:last-child {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-
-/* Ribbon (Ribbon.tsx): 緞帶. */
-.ribbon {
-  display: block;
-  width: 100%;
-  height: clamp(9rem, 5rem + 12vw, 17rem);
-  overflow: visible;
-}
-
-.ribbon-line {
-  fill: none;
-  stroke: var(--sakura-deep);
-  stroke-width: 54;
-  stroke-linecap: round;
-}
-
-.ribbon-text {
-  font-size: 34px;
-  fill: var(--fg);
-  dominant-baseline: middle;
+  z-index: -1;
+  background: var(--cone-scales) center / 100% 100% no-repeat;
+  pointer-events: none;
 }

@@ -12,6 +12,10 @@ services:
       STAFF_PASSWORD: ${STAFF_PASSWORD:?Set a strong initial staff password}
       STAMP_KEYS: ${STAMP_KEYS:?Set private station codes as a JSON object}
       DATABASE_PATH: /data/game.sqlite
+      # Published on 127.0.0.1 only, so traffic always arrives through the HTTPS proxy.
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+      # Days to keep photos that were not picked; 0 keeps them until set.
+      PHOTO_RETENTION_DAYS: ${PHOTO_RETENTION_DAYS:-0}
     volumes:
       - game-data:/data
     restart: unless-stopped

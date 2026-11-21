@@ -13,7 +13,7 @@
 
 - STAFF_USERNAME：首次建立的工作人員帳號（3 至 32 個英數、點、底線或連字號）。
 - STAFF_PASSWORD：至少 12 個字元的工作人員密碼，不要使用範例或共用密碼。
-- STAMP_KEYS：JSON 物件，包含 lake、library、gate 三個各不相同的現場代碼。
+- STAMP_KEYS：JSON 物件，新中大十景每個集章點一個各不相同的現場代碼（16 至 80 個大寫英數或連字號）：zhongda-road、tingsong、main-library、chungcheng-library、baihua、auditorium、zhongda-lake、friendship-sakura、csrsr-station、taichi。
   每個代碼為 16 至 80 個大寫英數或連字號；可各執行一次 openssl rand -hex 16
   並轉成大寫。不要把代碼或 .env 提交至公開 repo。
 - APP_ORIGIN：瀏覽器實際使用的完整 origin，不含結尾斜線。預設 http://localhost:8080 。
@@ -24,7 +24,7 @@
     docker compose up -d --build --wait
     docker compose logs -f
 
-開啟 http://localhost:8080/play ，加入主畫面後從 /game 註冊、登入與集章。
+開啟 http://localhost:8080/game 註冊、登入與集章；遊戲玩法說明在 /play。
 工作人員用同一套帳密登入 /staff，不使用管理金鑰。
 啟動時未設定必要密碼或現場代碼會直接失敗，不會默默使用公開測試值。
 若本機已由代理人建立 .env，隨機產生的工作人員帳密與現場代碼就在該檔案，
@@ -70,10 +70,9 @@ SSO 尚未串接，沒有自助找回密碼或 email 流程。未來 SSO 必須�
   紀錄含編號、參加者、伺服器時間、核銷帳號與章數；無刪改紀錄的 API。
   工作人員頁顯示最近 100 筆，完整歷史仍在資料庫。
 
-章、session、照片與兌獎 API 全部 no-store，service worker 明確略過 /api/。
-離線只保留 App 與說明；不會在離線時發章、核銷或先顯示假成功。
-舊版 localStorage 章不匯入有效紀錄。已安裝的舊 App 需連線，關閉所有舊分頁／視窗後
-重新開啟，讓新版 worker 啟用。
+章、session、照片與兌獎 API 全部 no-store。App 不提供離線功能（2026-11-09 移除）；
+`public/sw.js` 只負責清掉舊版離線快取並自行解除註冊。斷線時不會發章、核銷或先顯示假成功。
+舊版 localStorage 章不匯入有效紀錄。
 
 現場代碼只證明持有代碼，不能防止拍照轉傳或保證實際到場。位置、題目與獎品仍待
 主辦單位確認；目前只有「集滿全部章、每帳號一次」的一種兌獎規則。
@@ -105,7 +104,6 @@ Node 24 是必要條件；較早的 Node 24 仍會提示 SQLite / type stripping
 本機後端可用 DATABASE_PATH=/tmp/songying-dev.sqlite npm run server 啟動在 8080；
 另開 npm run dev。Vite 只轉譯由其本機頁面發出的 Origin，代理到預設後端。
 前後端使用一致 origin 後，也可直接以 Docker 驗證。
-開發模式的 /game?standalone 可在分頁測試；正式模式保留安裝檢查。
 
 測試包含帳密、角色拒絕、CSRF、無效代碼／答案、照片審核與重傳競態、
 重複集章、同時兌獎、session 到期／撤銷、重啟保存、照片清理及一致快照。
@@ -113,3 +111,20 @@ CI 使用同一份 docker-compose.yml 建置並啟動；工作流程中的帳密
 
 設計見 docs/DESIGN.md；目前架構見 docs/ARCHITECTURE.md；
 實測結果見 docs/PROTOTYPE-NOTES.md。歷史紀錄不是目前產品的完整功能清單。
+
+## 集章點代碼與作弊風險
+
+現場代碼（STAMP_KEYS）是集章的唯一到場證明。代碼整個活動不變時，只要有人把集章牌照片
+貼到網路上，別人就能在家集滿十個章，搶走限量獎品。建議每個活動日換一組新代碼：
+
+1. 產生十組新的代碼（每組 16 至 80 個大寫英數或連字號，彼此不同）。
+2. 更新正式主機 `.env` 的 STAMP_KEYS，執行 `docker compose up -d` 重新啟動。
+3. 換上印有當日 QR Code 與代碼的集章牌。
+
+已集到的章不受影響；只有舊代碼無法再集新章。
+
+## 照片保存期限
+
+拍照關卡的照片存在資料庫裡，供主辦單位評選佳作。訂好保存期限後，在 `.env` 設定
+`PHOTO_RETENTION_DAYS`（天數），伺服器會在啟動時與每小時刪除超過期限、未被選為佳作的照片；
+選為佳作的照片與所有已集的章都會保留。未設定（0）時照片不會自動刪除。

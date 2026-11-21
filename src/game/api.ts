@@ -1,12 +1,18 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
+
+import type { PrizeTier } from '../data/stamps';
 
 export type Receipt = { id: string; redeemed_at: string; reviewer: string };
+/** One prize tier as the server sees it for this account. */
+export type PrizeState = { eligible: boolean; left: number; redemption: Receipt | null };
 export type GameState = {
   user: { id: string; username: string; role: 'player' | 'staff' };
   stamps: Record<string, string>;
-  photos: Record<string, 'pending' | 'approved' | 'rejected'>;
+  /** Shown once the account can redeem any prize; one code covers both tiers. */
   redeemCode: string | null;
-  redemption: Receipt | null;
+  prizes: Record<PrizeTier, PrizeState>;
+  /** This player's uploaded photos, and whether the organisers picked each one. */
+  photos: Record<string, { picked: boolean }>;
 };
 export class ApiError extends Error {
   constructor(
@@ -42,61 +48,75 @@ export async function api<T>(path: string, value?: unknown, init: RequestInit = 
   return data;
 }
 
+/*
+ * One account for the whole app: the nav, the stamp book, the map and the staff page
+ * read the same store, so signing in or out anywhere updates them all at once.
+ */
+type Account = { data: GameState | null; loading: boolean; error: string };
+let account: Account = { data: null, loading: true, error: '' };
+const listeners = new Set<() => void>();
+const set = (next: Partial<Account>) => {
+  account = { ...account, ...next };
+  for (const listener of listeners) listener();
+};
+const serverAccount: Account = { data: null, loading: true, error: '' };
+
+let lastRefresh = 0;
+let inflight: Promise<void> | null = null;
+
+/** Re-read the server record. Calls made together (the nav and a page) share one request. */
+function refresh(): Promise<void> {
+  if (inflight) return inflight;
+  inflight = load().finally(() => {
+    inflight = null;
+    lastRefresh = Date.now();
+  });
+  return inflight;
+}
+
+async function load() {
+  set({ loading: true, error: '' });
+  try {
+    set({ data: await api<GameState>('/me') });
+  } catch (error) {
+    set({
+      data: null,
+      error: error instanceof ApiError && error.status === 401 ? '' : (error as Error).message,
+    });
+  } finally {
+    set({ loading: false });
+  }
+}
+
+async function logout() {
+  set({ loading: true, error: '' });
+  try {
+    await api('/logout', {});
+    set({ data: null });
+  } catch (error) {
+    set({ error: (error as Error).message });
+  } finally {
+    set({ loading: false });
+  }
+}
+
+const setData = (state: GameState | null) => set({ data: state, error: '' });
+
 export function useAccount() {
-  const [data, setData] = useState<GameState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const refresh = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      setData(await api<GameState>('/me'));
-    } catch (error) {
-      setData(null);
-      if (!(error instanceof ApiError && error.status === 401)) setError((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  useEffect(() => {
-    let alive = true;
-    api<GameState>('/me')
-      .then((state) => {
-        if (alive) setData(state);
-      })
-      .catch((error) => {
-        if (alive && !(error instanceof ApiError && error.status === 401)) setError(error.message);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const logout = async () => {
-    setLoading(true);
-    setError('');
-    try {
-      await api('/logout', {});
-      setData(null);
-    } catch (error) {
-      setError((error as Error).message);
-    } finally {
-      setLoading(false);
-    }
-  };
-  return {
-    data,
-    setData: (state: GameState | null) => {
-      setError('');
-      setData(state);
+  const state = useSyncExternalStore(
+    (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
     },
-    loading,
-    error,
-    refresh,
-    logout,
-  };
+    () => account,
+    () => serverAccount,
+  );
+  // Each page re-reads the server record when it opens, so progress is never stale.
+  useEffect(() => {
+    // Opening a page re-reads progress, unless another component just did.
+    if (Date.now() - lastRefresh > 2000) void refresh();
+  }, []);
+  return { ...state, setData, refresh, logout };
 }
 
 export const savedTime = (value: string) =>

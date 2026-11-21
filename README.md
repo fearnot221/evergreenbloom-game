@@ -13,7 +13,7 @@
 
 - STAFF_USERNAME：首次建立的工作人員帳號（3 至 32 個英數、點、底線或連字號）。
 - STAFF_PASSWORD：至少 12 個字元的工作人員密碼，不要使用範例或共用密碼。
-- STAMP_KEYS：JSON 物件，包含 lake、library、gate 三個各不相同的現場代碼。
+- STAMP_KEYS：JSON 物件，新中大十景每個集章點一個各不相同的現場代碼（16 至 80 個大寫英數或連字號）：zhongda-road、tingsong、main-library、chungcheng-library、baihua、auditorium、zhongda-lake、friendship-sakura、csrsr-station、taichi。
   每個代碼為 16 至 80 個大寫英數或連字號；可各執行一次 openssl rand -hex 16
   並轉成大寫。不要把代碼或 .env 提交至公開 repo。
 - APP_ORIGIN：瀏覽器實際使用的完整 origin，不含結尾斜線。預設 http://localhost:8080 。
@@ -110,3 +110,20 @@ CI 使用同一份 docker-compose.yml 建置並啟動；工作流程中的帳密
 
 設計見 docs/DESIGN.md；目前架構見 docs/ARCHITECTURE.md；
 實測結果見 docs/PROTOTYPE-NOTES.md。歷史紀錄不是目前產品的完整功能清單。
+
+## 集章點代碼與作弊風險
+
+現場代碼（STAMP_KEYS）是集章的唯一到場證明。代碼整個活動不變時，只要有人把集章牌照片
+貼到網路上，別人就能在家集滿十個章，搶走限量獎品。建議每個活動日換一組新代碼：
+
+1. 產生十組新的代碼（每組 16 至 80 個大寫英數或連字號，彼此不同）。
+2. 更新正式主機 `.env` 的 STAMP_KEYS，執行 `docker compose up -d` 重新啟動。
+3. 換上印有當日 QR Code 與代碼的集章牌。
+
+已集到的章不受影響；只有舊代碼無法再集新章。
+
+## 照片保存期限
+
+拍照關卡的照片存在資料庫裡，供主辦單位評選佳作。訂好保存期限後，在 `.env` 設定
+`PHOTO_RETENTION_DAYS`（天數），伺服器會在啟動時與每小時刪除超過期限、未被選為佳作的照片；
+選為佳作的照片與所有已集的章都會保留。未設定（0）時照片不會自動刪除。

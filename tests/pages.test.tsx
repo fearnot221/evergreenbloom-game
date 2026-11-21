@@ -23,16 +23,22 @@ describe('game app', () => {
       expect(html.match(/<h1/g)).toHaveLength(1);
     });
   }
-  it('preserves the scanned claim in the guide', () => {
-    const html = render('/play?spot=lake&k=lake-26').replaceAll('<!-- -->', '');
+  it('preserves the scanned claim on the guide', () => {
+    const html = render('/play?spot=zhongda-lake&k=lake-26').replaceAll('<!-- -->', '');
     expect(html).toContain('待驗證集章點「中大湖」');
     expect(html).toContain('LAKE-26');
-    expect(html).toContain('https://fearnot221.github.io/evergreenbloom-website/map');
+    expect(html).toContain('href="/map?spot=zhongda-lake"');
   });
   it('does not treat a QR handoff as server validation', () => {
-    expect(render('/play?spot=lake&k=GATE-26')).toContain('待驗證');
+    expect(render('/play?spot=zhongda-lake&k=GATE-26')).toContain('待驗證');
   });
-  it('opens the stamp book in a normal browser tab', () => {
-    expect(render('/')).not.toContain('安裝');
+  it('plays in the browser: no install instructions anywhere', () => {
+    for (const path of ['/', '/play', '/play?spot=zhongda-lake&k=lake-26'])
+      expect(render(path)).not.toMatch(/安裝|主畫面/);
+  });
+  it('sends a claim that lands on the guide on to the stamp book', () => {
+    expect(render('/play?spot=zhongda-lake&k=lake-26')).toContain(
+      'href="/?spot=zhongda-lake&amp;k=lake-26"',
+    );
   });
 });

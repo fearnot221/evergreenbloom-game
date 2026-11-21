@@ -1,5 +1,26 @@
 # Product definition: 松櫻祭
 
+**Amended 2026-11-12: 新中大十景 stamp rally (team plan).** Ten stamp spots: knowledge
+quiz ×5 (中大路, 總圖書館, 百花川, 太遙中心接收站, 太極銅雕), photo ×3 (聽松台, 中大湖, 友好之櫻)
+and read-then-answer ×2 (中正圖書館, 大禮堂). 鹿林天文台 is the tenth scene but is on 玉山,
+so it is an off-campus map point with an introduction, not a stamp; 太極銅雕 (舊十景 #5)
+takes its place. Flow: scan the QR code → play the spot's game (wrong answers retry; for
+read-then-answer the passage hides once the answer box opens and 回上一步 shows it
+again) → the spot's introduction → stamp. Progress milestones: 3 stamps a sakura shower,
+6 stamps 松櫻祭當天餐券, 10 stamps 松櫻週邊, each prize once per person and capped at the
+first 100 redemptions (server-enforced). Photo tasks: the upload, with consent, earns the
+stamp at once (no review gate) and is kept only so the organisers can pick the 3 best
+photos per photo spot for 當天活動市集餐券 (also server-capped). A stamp map shows every
+spot; a spot's full introduction unlocks after it is collected because several contain
+their quiz answer. Open: prize desk place and hours, photo retention period, and exact
+positions of spots marked approximate in src/data/stamps.ts.
+
+**Amended 2026-11-12: no install requirement.** The stamp rally plays in an ordinary
+mobile browser; the app has no install instructions anywhere. `/play` is the game guide
+(遊戲玩法). Prize contents, the redemption desk's place and hours, and the final stamp
+spots are not yet confirmed and are shown as 待公布 / 示範. This supersedes the 2026-10-16
+rule that the game runs only in the installed PWA.
+
 ## Current backend · 2026-10-17
 
 The user authorized password accounts now, later SSO, server-validated stamps,

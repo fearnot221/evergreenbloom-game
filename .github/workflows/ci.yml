@@ -12,7 +12,7 @@ jobs:
       COMPOSE_PROJECT_NAME: songying-ci
       STAFF_USERNAME: ci-staff
       STAFF_PASSWORD: ci-only-password-not-for-deployment
-      STAMP_KEYS: '{"lake":"CI-LAKE-CODE-12345678","library":"CI-PHOTO-CODE-12345678","gate":"CI-GATE-CODE-12345678"}'
+      STAMP_KEYS: '{"zhongda-road":"CI-00-STATION-CODE-1234","tingsong":"CI-01-STATION-CODE-1234","main-library":"CI-02-STATION-CODE-1234","chungcheng-library":"CI-03-STATION-CODE-1234","baihua":"CI-04-STATION-CODE-1234","auditorium":"CI-05-STATION-CODE-1234","zhongda-lake":"CI-06-STATION-CODE-1234","friendship-sakura":"CI-07-STATION-CODE-1234","csrsr-station":"CI-08-STATION-CODE-1234","taichi":"CI-09-STATION-CODE-1234"}'
 
     steps:
       - uses: actions/checkout@v4
@@ -28,6 +28,6 @@ jobs:
       - run: docker compose build
       - run: docker compose up -d --wait --wait-timeout 90
       - run: curl --fail http://localhost:8080/healthz
-      - run: curl --fail http://localhost:8080/stamp/lake?k=CI-LAKE-CODE-12345678
+      - run: curl --fail http://localhost:8080/stamp/taichi?k=CI-09-STATION-CODE-1234
       - run: docker compose down
         if: always()

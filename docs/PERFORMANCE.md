@@ -49,8 +49,9 @@ build, Vite gzip sizes in kB; a build estimate, not field data):
 | --- | --- | --- |
 | Initial JavaScript (entry 119.3 + Home 4.9 + GSAP, ScrollTrigger, SplitText, ScrambleText 52.0) | ~176 kB | ≤ 150 KiB (153.6 kB): **over by ~23 kB** |
 | Initial CSS | ~8 kB | ≤ 50 KiB |
-| Fonts (one display subset, LXGW WenKai TC Bold, preloaded) | 75.2 KiB | ≤ 100 KiB |
-| Glyph textures (cones.svg 174 KB, petals.svg 21 KB raw; ~2 + 1.4 kB gzip) | ~3.4 kB | |
+| Fonts (one display subset, Noto Sans TC Black, preloaded; 2026-11-13, game copy only) | 21.0 KiB | ≤ 100 KiB |
+| QR decoder jsQR (on demand, only when a browser without BarcodeDetector opens the scanner; 2026-11-12) | 47.5 kB gzip | not in the entry or page chunks |
+| grain.png 14 KB (v7, 2026-11-09; replaces the glyph textures). Key-visual elements are inline SVG components (`motifs.tsx`), no image files | ~14 kB | Cached by the PWA core |
 
 The petal storm draws at most 130 petals on two canvases at device pixel ratio ≤ 2 and
 stops when the hero leaves the viewport; it has not been profiled on a low-end phone.

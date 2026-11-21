@@ -48,6 +48,25 @@ For current behavior and verification, read [ARCHITECTURE.md](ARCHITECTURE.md),
 This document defines permanent interaction policy. On 2026-10-17 the user replaced
 v5 with v6 「櫻吹雪 · 一陣風」 (see [DESIGN.md](DESIGN.md)); the inventory below is current.
 
+### Motion without GSAP (2026-11-13)
+
+GSAP and @gsap/react were removed (audit: about 45 KB gzip for two effects). The guide's
+three task seals press on with CSS `seal-press` once an IntersectionObserver sees them
+(a 4 s fallback presses them anyway, so they are never left hidden); 集章成功 uses CSS
+`seal-drop` / `seal-settle`, staggered `copy-rise`, and a CSS petal burst whose petals
+carry their own direction, spin and size as custom properties. Reduced motion: the burst
+and shower are hidden and other durations collapse (base.css). The v7 section below
+describes the earlier GSAP version.
+
+### v7 game motion (2026-11-09)
+
+Only two motions remain, both about earning a stamp: `stamp()` presses the three method
+seals onto 安裝與說明 as they scroll in, and `StampReveal` presses the seal and bursts
+petals on 集章成功. Both run only under `prefers-reduced-motion: no-preference`. Buttons
+press down 3px (CSS, 120ms); nav and choice rows fade their background (CSS). `gsap.ts`
+now registers only ScrollTrigger; SplitText, ScrambleText, ink fill, ribbon and flap are
+removed with the components that used them. The inventory below is historical.
+
 ### Current interaction inventory (v6, 2026-10-17)
 
 Text motions follow ui.fearnot.tw's catalogue (numbers in brackets), one per context. Near

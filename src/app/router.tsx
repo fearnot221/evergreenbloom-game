@@ -32,6 +32,7 @@ export const routes: RouteObject[] = [
           { path: 'play', lazy: page(() => import('../pages/PlayPage')) },
           // Old installs and links used /game; the stamp book now lives at the app root.
           { path: 'game', loader: ({ request }) => redirect(`/${new URL(request.url).search}`) },
+          { path: 'map', lazy: page(() => import('../map/StampMap')) },
           { path: 'staff', lazy: page(() => import('../game/StaffPage')) },
           // QR codes on site point here: /stamp/<spot>?k=<key>; the stamp book takes the claim.
           {

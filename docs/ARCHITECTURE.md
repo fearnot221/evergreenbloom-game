@@ -1,5 +1,48 @@
 # Festival Web App — architecture and implementation status
 
+## 新中大十景 rules · 2026-11-12
+
+Spot data, intros, prize tiers: `src/data/stamps.ts` (shared with the server; no answers
+or codes). Answers: `server/app.mjs` (`QUIZ` option index; `FILL` text, NFKC-normalised,
+punctuation and spaces ignored, a short reply containing the answer counts). Schema v2:
+`redemptions` is one row per (user, tier) with stock counted inside the redeem
+transaction; `photos` keeps consented uploads (one per user and photo spot, ≤ 3 MB, type
+sniffed) with `picked_at`, at most 3 picked per spot inside a transaction. The v1→v2
+migration drops review-only v1 photos and renames v1 receipts to `redemptions_v1`. The
+client shrinks photos to ≤ 1600 px JPEG before upload. Routes: `/game` (TaskFlow,
+Progress, StampReveal intro → stamp), `/map` (StampMap over `src/data/campus-map.json`,
+built by `scripts/map/build-campus-map.mjs` from the website's OSM snapshot, ODbL),
+`/staff` (prize redemption by tier, best-photo gallery). STAMP_KEYS now needs ten codes.
+In-app scanning (`src/game/QrScanner.tsx`) reads camera frames with the browser's
+BarcodeDetector (Chromium, Android) or, where there is none (Safari, iPhone), with jsQR
+1.4.0 (Apache-2.0), loaded on demand as its own chunk. Camera access needs HTTPS (or
+localhost); without it the dialog points to the camera app or the printed code.
+`readScan` (stamp-store.ts) reads stamp links on any host or a bare code; the app never
+navigates to a scanned URL.
+
+## Browser play, no install guide · 2026-11-12
+
+At the user's request the game no longer requires installing to the home screen and
+the app carries no install instructions. `/game` runs in any browser tab (the
+`isStandalone()` gate, the pending-claim localStorage handoff and the blob-manifest
+`start_url` swap are removed); `/stamp/:spot?k=` redirects straight to `/game`, where a
+signed-out player sees the scanned spot and the sign-in form. `/play` is now 遊戲玩法, the
+game guide: four steps, the three task types, the stamp spots with map links, redemption
+rules, sign-in, photo privacy and an FAQ. `useInstallPrompt` is gone from
+`src/pwa/PwaPanel.tsx` (`useOnline` stays). The manifest remains, so browsers may still
+offer their own install; the app does not ask for it. A test fails if 安裝 or 主畫面
+appears on `/game` or `/play`. Install sections below are historical.
+
+## Offline removed · 2026-11-09
+
+At the user's request the app no longer works offline. The footer save panel, the
+generated worker (`scripts/build-sw.mjs`, `scripts/sw-template.js`), its test and
+`public/offline.html` are gone. `public/sw.js` is now a retirement worker: installed
+copies of the old worker update to it, it deletes the `songying-core-*` / `songying-shell-*`
+caches and unregisters. The header offline-state pill (`useOnline`) remains in
+`src/pwa/PwaPanel.tsx`. Offline sections below
+are historical.
+
 ## Current backend · 2026-10-17
 
 The user authorized password accounts now, later SSO, server-validated stamps,

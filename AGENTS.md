@@ -17,11 +17,15 @@ in ARCHITECTURE.md and the latest PROTOTYPE-NOTES.md; preserve explicit prototyp
 TBD, geography and official-brand boundaries. Earlier phase-specific prohibitions
 are not a ban on subsequently authorized implementation.
 
-Redesign note (2026-10-17): at the user's request the whole UI was rebuilt, now as v6
+Redesign note (2026-11-09): this repository now evolves apart from the website. The game
+UI was rebuilt as v7 「星夜集章」 from the official key visual and its colour card (see
+DESIGN.md); it supersedes the v6 visual notes below for this repository.
+
+Earlier redesign note (2026-10-17): at the user's request the whole UI was rebuilt, now as v6
 「櫻吹雪 · 一陣風」 (see DESIGN.md), sakura-pink and editorial, to the 「松櫻季官網規劃」 brief. Display-face
 titles must come from `src/data/display-copy.ts` (or `title`/`name` values in the data
-files). DESIGN.md records the adopted tokens and components; reuse them. GSAP drives the
-v6 motion system through `src/motion/gsap.ts` (record in INTERACTIONS.md). Run `npm run check`
+files). DESIGN.md records the adopted tokens and components; reuse them. Motion is CSS only since
+2026-11-13 (GSAP removed; see INTERACTIONS.md). Run `npm run check`
 (Biome, TypeScript, Vitest, geo tests) before handing back code changes.
 
 Read these documents before frontend work:

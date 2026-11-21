@@ -14,7 +14,7 @@ describe('source hygiene', () => {
     for (const [name, sources] of Object.entries(subsets)) {
       const subset = new Set(fs.readFileSync(`public/fonts/${name}.chars.txt`, 'utf8'));
       const missing = [...collectCharacters(sources)].filter((ch) => !subset.has(ch));
-      // Run `npm run fonts -- <NotoSerifTC-Black.ttf> <NotoSansTC-Black.ttf>` after editing copy.
+      // Run `npm run fonts -- <NotoSansTC-Black.ttf>` after editing copy.
       expect(missing.join(''), name).toBe('');
     }
   });

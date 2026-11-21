@@ -12,14 +12,6 @@ export default function NotFoundPage({ what = '這一頁' }: { what?: string }) 
       lede={`找不到${what}。內容可能尚未收錄於這個版本，或網址有誤。`}
       className="not-found"
     >
-      {/* 殘影: the question drifts with three fading echoes behind it, a little lost. */}
-      <p className="display echo" aria-hidden="true">
-        {[0, 1, 2, 3].map((layer) => (
-          <span key={layer} style={{ '--layer': layer } as React.CSSProperties}>
-            {display.pages.notFound}
-          </span>
-        ))}
-      </p>
       <p className="actions">
         <Link className="button" to="/">
           回到集章冊

@@ -1,4 +1,4 @@
-# 松櫻祭 · 集章 PWA
+# 松櫻祭 · 集章網站
 
 獨立於 [官網](https://github.com/fearnot221/evergreenbloom-website) 的集章服務。
 只有一份部署設定：**docker-compose.yml**。一個 Node 24 容器同時提供前端與 API，
@@ -18,13 +18,13 @@
   並轉成大寫。不要把代碼或 .env 提交至公開 repo。
 - APP_ORIGIN：瀏覽器實際使用的完整 origin，不含結尾斜線。預設 http://localhost:8080 。
   正式環境必須是 HTTPS，例如 https://play.example.org （尚未指定正式網址）。
-- PWA_PORT：本機映射埠，預設 8080。若修改，APP_ORIGIN 的埠也要對應。
+- GAME_PORT：本機映射埠，預設 8080。若修改，APP_ORIGIN 的埠也要對應。
 - VITE_WEBSITE_URL：官網網址；這一項改動需要重新建置前端。
 
     docker compose up -d --build --wait
     docker compose logs -f
 
-開啟 http://localhost:8080/game 註冊、登入與集章；遊戲玩法說明在 /play。
+開啟 http://localhost:8080/ ，用瀏覽器直接註冊、登入與集章；/play 是集章說明。
 工作人員用同一套帳密登入 /staff，不使用管理金鑰。
 啟動時未設定必要密碼或現場代碼會直接失敗，不會默默使用公開測試值。
 若本機已由代理人建立 .env，隨機產生的工作人員帳密與現場代碼就在該檔案，
@@ -32,7 +32,7 @@
 
 正式伺服器需自行設定 HTTPS 反向代理，轉送至本機埠。預設僅綁定 loopback；
 不會將未加密 API 或資料庫埠開放到外網。代理不得改寫瀏覽器的 Origin。
-確定正式 PWA origin 後，再設定官網的 VITE_PWA_URL 並重部署官網。
+確定正式集章網址後，再設定官網的 VITE_GAME_URL 並重部署官網。
 
 ## 登入與權限
 
@@ -53,7 +53,7 @@ SSO 尚未串接，沒有自助找回密碼或 email 流程。未來 SSO 必須�
 
 ## 驗章與兌獎
 
-現場 QR：<PWA origin>/stamp/<spot>?k=<private-code>。
+現場 QR：<集章網址>/stamp/<spot>?k=<private-code>。
 既有 LAKE-26 / BOOK-26 / GATE-26 公開示範碼已停用；請在設定新代碼後重新製作 QR。
 
 - 掃碼：伺服器檢查該點代碼，再寫入自己的集章紀錄。
@@ -70,8 +70,10 @@ SSO 尚未串接，沒有自助找回密碼或 email 流程。未來 SSO 必須�
   紀錄含編號、參加者、伺服器時間、核銷帳號與章數；無刪改紀錄的 API。
   工作人員頁顯示最近 100 筆，完整歷史仍在資料庫。
 
-章、session、照片與兌獎 API 全部 no-store。App 不提供離線功能（2026-11-09 移除）；
-`public/sw.js` 只負責清掉舊版離線快取並自行解除註冊。斷線時不會發章、核銷或先顯示假成功。
+章、session、照片與兌獎 API 全部 no-store。這是一般網站，不是 PWA：沒有 manifest、
+安裝或離線快取，離線時不會發章、核銷或先顯示假成功。public/sw.js 只負責移除舊版 PWA
+的 worker 與 songying-core-* / songying-shell-* 快取，不攔截任何請求；舊版使用者連線
+開啟網站後即會清除。已加入主畫面的舊捷徑可直接刪除，改用瀏覽器開啟。
 舊版 localStorage 章不匯入有效紀錄。
 
 現場代碼只證明持有代碼，不能防止拍照轉傳或保證實際到場。位置、題目與獎品仍待
@@ -79,17 +81,14 @@ SSO 尚未串接，沒有自助找回密碼或 email 流程。未來 SSO 必須�
 
 ## 資料保存與備份
 
-從舊 evergreenbloom-pwa 資料夾搬遷且已有資料時，在本機 .env 設定
-COMPOSE_PROJECT_NAME=evergreenbloom-pwa，讓 Compose 繼續使用原本的 volume。
-
 docker compose down 不刪除 named volume；重新建立容器仍保留帳號、章與兌獎紀錄。
 **不要執行 docker compose down -v**，那會刪除資料。
 本服務是單一實例；不要讓多個容器在網路檔案系統共用同一份 SQLite。
 
 連線中的資料庫請用 SQLite backup API 產生一致快照，不要直接複製主檔而漏掉 WAL：
 
-    docker compose exec -T pwa node --input-type=module -e "import {DatabaseSync,backup} from 'node:sqlite'; const db=new DatabaseSync('/data/game.sqlite'); await backup(db,'/data/backup.sqlite'); db.close();"
-    docker compose cp pwa:/data/backup.sqlite ./backup.sqlite
+    docker compose exec -T game node --input-type=module -e "import {DatabaseSync,backup} from 'node:sqlite'; const db=new DatabaseSync('/data/game.sqlite'); await backup(db,'/data/backup.sqlite'); db.close();"
+    docker compose cp game:/data/backup.sqlite ./backup.sqlite
 
 備份含帳號雜湊、進度、待審照片與兌獎紀錄，應受限存放並依保存政策清理。
 還原前停止寫入，保存原始檔及 WAL，再從一致快照還原；不要覆蓋執行中的資料庫。

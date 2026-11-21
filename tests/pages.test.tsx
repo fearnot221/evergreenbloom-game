@@ -9,14 +9,14 @@ function render(url: string) {
     <MemoryRouter initialEntries={[url]}>
       <Routes>
         <Route path="/play" element={<PlayPage />} />
-        <Route path="/game" element={<GamePage />} />
+        <Route path="/" element={<GamePage />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
 describe('game app', () => {
-  for (const path of ['/play', '/game']) {
+  for (const path of ['/play', '/']) {
     it(`${path} has an accessible page landmark and heading`, () => {
       const html = render(path);
       expect(html.match(/<main /g)).toHaveLength(1);
@@ -33,12 +33,12 @@ describe('game app', () => {
     expect(render('/play?spot=zhongda-lake&k=GATE-26')).toContain('待驗證');
   });
   it('plays in the browser: no install instructions anywhere', () => {
-    for (const path of ['/game', '/play', '/play?spot=zhongda-lake&k=lake-26'])
+    for (const path of ['/', '/play', '/play?spot=zhongda-lake&k=lake-26'])
       expect(render(path)).not.toMatch(/安裝|主畫面/);
   });
   it('sends a claim that lands on the guide on to the stamp book', () => {
     expect(render('/play?spot=zhongda-lake&k=lake-26')).toContain(
-      'href="/game?spot=zhongda-lake&amp;k=lake-26"',
+      'href="/?spot=zhongda-lake&amp;k=lake-26"',
     );
   });
 });

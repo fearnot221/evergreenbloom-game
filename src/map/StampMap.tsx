@@ -126,7 +126,7 @@ export default function StampMap() {
               </p>
             )}
             {spot.approx && <p className="note">地圖上的位置為概略位置，請以現場集章牌為準。</p>}
-            <Link className="text-link" to="/game">
+            <Link className="text-link" to="/">
               打開集章冊
             </Link>
           </>

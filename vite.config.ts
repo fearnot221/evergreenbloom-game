@@ -17,7 +17,6 @@ export default defineConfig({
     },
   },
   build: {
-    manifest: true,
     // The Three.js renderer (~600 kB raw) is a lazy, map-only chunk by design.
     chunkSizeWarningLimit: 650,
     rolldownOptions: {

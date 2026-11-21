@@ -13,7 +13,7 @@ export default function NotFoundPage({ what = '這一頁' }: { what?: string }) 
       className="not-found"
     >
       <p className="actions">
-        <Link className="button" to="/game">
+        <Link className="button" to="/">
           回到集章冊
         </Link>
         <a className="button button-ghost" href={websiteHref()}>

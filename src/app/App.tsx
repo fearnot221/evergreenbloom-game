@@ -11,7 +11,7 @@ import { BloomMark, Cloud, StarMark } from '../components/motifs';
 import { websiteHref } from '../data/deployment';
 import { poster } from '../data/poster-copy';
 import { useAccount } from '../game/api';
-import { useOnline } from '../pwa/PwaPanel';
+import { useOnline } from './use-online';
 import { useRouteFocus } from './use-route-focus';
 
 export default function App() {
@@ -24,12 +24,12 @@ export default function App() {
         跳至主要內容
       </a>
       <header className="app-header">
-        <Link className="brand" to="/game" aria-label="松櫻祭 集章冊">
+        <Link className="brand" to="/" aria-label="松櫻祭 集章冊">
           <BloomMark className="brand-emblem" />
           <span className="display brand-word">{poster.wordmark}</span>
         </Link>
         <nav aria-label="遊戲導覽" className="app-nav">
-          <NavLink to="/game">
+          <NavLink to="/" end>
             <SealCheckIcon size={20} aria-hidden="true" />
             集章冊
           </NavLink>

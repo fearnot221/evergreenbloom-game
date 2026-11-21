@@ -18,7 +18,7 @@ export default function RouteError() {
         <a className="button" href={window.location.href}>
           重新載入
         </a>
-        <a className="button button-ghost" href="/game">
+        <a className="button button-ghost" href="/">
           開啟集章冊
         </a>
       </p>

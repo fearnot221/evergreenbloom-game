@@ -130,14 +130,14 @@ export default function PlayPage() {
             這是你掃到的集章點，登入後由伺服器確認代碼與任務。集章冊沒有自動帶入時，輸入代碼{' '}
             <strong className="latin">{claim.key}</strong>。
           </p>
-          <Link className="button" to={`/game?${params}`}>
+          <Link className="button" to={`/?${params}`}>
             前往集章冊
             <ArrowUpRightIcon size={16} weight="bold" aria-hidden="true" />
           </Link>
         </section>
       ) : (
         <div className="actions">
-          <Link className="button" to="/game">
+          <Link className="button" to="/">
             打開集章冊
             <ArrowUpRightIcon size={16} weight="bold" aria-hidden="true" />
           </Link>

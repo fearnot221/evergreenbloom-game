@@ -16,8 +16,6 @@ describe('game routes', () => {
       context: {},
       request: new Request('https://game.example/stamp/zhongda-lake?k=LAKE-26'),
     });
-    expect((response as Response).headers.get('Location')).toBe(
-      '/game?spot=zhongda-lake&k=LAKE-26',
-    );
+    expect((response as Response).headers.get('Location')).toBe('/?spot=zhongda-lake&k=LAKE-26');
   });
 });

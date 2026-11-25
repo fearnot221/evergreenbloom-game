@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { once } from 'node:events';
 import { mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -42,7 +43,7 @@ const correct = {
   taichi: 2,
 };
 
-async function fixture(t) {
+async function fixture(t, extra = {}) {
   const dir = await mkdtemp(path.join(os.tmpdir(), 'songying-api-'));
   await writeFile(path.join(dir, 'index.html'), '<html>app</html>');
   const options = {
@@ -52,6 +53,7 @@ async function fixture(t) {
     staffPassword: secret,
     stampKeys,
     staticDir: dir,
+    ...extra,
   };
   let app;
   let base;
@@ -74,6 +76,7 @@ async function fixture(t) {
   const request = async (route, { cookie = '', data, headers = {}, method, raw } = {}) => {
     const response = await fetch(base + route, {
       method: method ?? (data === undefined && raw === undefined ? 'GET' : 'POST'),
+      redirect: 'manual',
       headers: {
         Origin: origin,
         Cookie: cookie,
@@ -361,7 +364,9 @@ test('each prize stops at its stock of 100, even when the last ones are claimed 
   const db = new DatabaseSync(f.options.database);
   t.after(() => db.close());
   // 98 earlier receipts from seeded players, then three eligible players race for two.
-  const insertUser = db.prepare("INSERT INTO users VALUES (?,?,'x','player',?,'2026-01-01')");
+  const insertUser = db.prepare(
+    "INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,'x','player',?,'2026-01-01')",
+  );
   const insertReceipt = db.prepare(
     "INSERT INTO redemptions VALUES (?,?,'meal','2026-01-01','staff',6)",
   );
@@ -466,7 +471,7 @@ test('a v1 database migrates: review-only photos dropped, old receipts kept asid
   assert.equal(db.prepare('SELECT count(*) AS n FROM photos').get().n, 0);
   assert.ok(db.prepare("SELECT 1 FROM pragma_table_info('photos') WHERE name='picked_at'").get());
   assert.equal(db.prepare('SELECT count(*) AS n FROM redemptions_v1').get().n, 1);
-  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 2);
+  assert.equal(db.prepare('PRAGMA user_version').get().user_version, 3);
   const me = (await f.request('/api/me', { cookie: player.cookie })).data;
   assert.deepEqual(me.stamps, {});
   assert.equal(me.prizes.meal.redemption, null);
@@ -576,5 +581,111 @@ test('rate limits repeated login attempts and fails closed on unsafe deployment 
   await assert.rejects(
     createApp({ ...f.options, stampKeys: { ...stampKeys, taichi: 'GATE-26' } }),
     /STAMP_KEYS/,
+  );
+});
+
+test('Google sign-in: state and PKCE checked, one player per Google subject, no email kept', async (t) => {
+  const off = await fixture(t);
+  assert.deepEqual((await off.request('/api/auth/providers')).data, { google: false });
+  assert.equal((await off.request('/api/auth/google')).status, 404);
+
+  const f = await fixture(t, { googleClientId: 'client.apps', googleClientSecret: 'shh' });
+  assert.deepEqual((await f.request('/api/auth/providers')).data, { google: true });
+  const realFetch = globalThis.fetch;
+  let claims = {};
+  let sent;
+  globalThis.fetch = async (url, init) => {
+    if (String(url) !== 'https://oauth2.googleapis.com/token') return realFetch(url, init);
+    sent = new URLSearchParams(init.body);
+    const part = Buffer.from(JSON.stringify(claims)).toString('base64url');
+    return Response.json({ id_token: `e30.${part}.sig` });
+  };
+  t.after(() => {
+    globalThis.fetch = realFetch;
+  });
+  const start = async (next) => {
+    const r = await f.request(
+      `/api/auth/google${next ? `?next=${encodeURIComponent(next)}` : ''}`,
+      {
+        method: 'GET',
+      },
+    );
+    assert.equal(r.status, 303);
+    const google = new URL(r.headers.get('location'));
+    assert.equal(google.origin, 'https://accounts.google.com');
+    assert.equal(google.searchParams.get('redirect_uri'), `${origin}/api/auth/google/callback`);
+    return { cookie: r.cookie, state: google.searchParams.get('state'), google };
+  };
+  const callback = (cookie, query) =>
+    f.request(`/api/auth/google/callback?${new URLSearchParams(query)}`, { cookie });
+  const good = { iss: 'https://accounts.google.com', aud: 'client.apps', sub: '1234567890' };
+  claims = { ...good, exp: Date.now() / 1000 + 60, email: 'someone@example.com' };
+
+  // A forged state, or no state cookie, never reaches Google's token endpoint.
+  const a = await start('/?spot=tingsong');
+  const forged = await callback(a.cookie, { code: 'c', state: 'wrong' });
+  assert.equal(forged.headers.get('location'), '/?spot=tingsong&login=failed');
+  assert.equal(sent, undefined);
+  assert.equal((await callback('', { code: 'c', state: a.state })).status, 303);
+  assert.equal(sent, undefined);
+
+  // The happy path: session cookie set, sent back to the page the player came from.
+  const b = await start('/?spot=tingsong');
+  const ok = await callback(b.cookie, { code: 'the-code', state: b.state });
+  assert.equal(ok.headers.get('location'), '/?spot=tingsong');
+  assert.equal(sent.get('code'), 'the-code');
+  assert.equal(
+    createHash('sha256').update(sent.get('code_verifier')).digest('base64url'),
+    b.google.searchParams.get('code_challenge'),
+  );
+  const me = (await f.request('/api/me', { cookie: ok.cookie })).data;
+  assert.equal(me.user.role, 'player');
+  assert.match(me.user.username, /^g-[a-f0-9]{10}$/);
+  // The same Google account signs in to the same player; it has no password to guess.
+  const c = await start();
+  const again = await callback(c.cookie, { code: 'x', state: c.state });
+  assert.equal(again.headers.get('location'), '/');
+  assert.equal((await f.request('/api/me', { cookie: again.cookie })).data.user.id, me.user.id);
+  const login = await f.request('/api/login', {
+    data: { username: me.user.username, password: secret },
+  });
+  assert.equal(login.status, 401);
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  assert.equal(db.prepare('SELECT count(*) AS n FROM identities').get().n, 1);
+  assert.doesNotMatch(
+    JSON.stringify(db.prepare('SELECT * FROM users').all()),
+    /someone@example\.com/,
+  );
+
+  // Any signed-in account sets its own nickname; it is not a login name.
+  const named = await f.request('/api/nickname', {
+    cookie: ok.cookie,
+    data: { nickname: '  松果　小隊  ' },
+  });
+  assert.equal(named.status, 200);
+  assert.equal(named.data.user.nickname, '松果 小隊');
+  assert.equal(named.data.user.username, me.user.username);
+  for (const bad of ['a'.repeat(21), 'x\u0007', 42])
+    assert.equal(
+      (await f.request('/api/nickname', { cookie: ok.cookie, data: { nickname: bad } })).status,
+      400,
+    );
+  assert.equal((await f.request('/api/nickname', { data: { nickname: 'x' } })).status, 401);
+  const cleared = await f.request('/api/nickname', { cookie: ok.cookie, data: { nickname: ' ' } });
+  assert.equal(cleared.data.user.nickname, null);
+
+  // An open redirect is refused; a token for another client or an expired one fails.
+  const d = await start('https://evil.example/');
+  claims = { ...good, aud: 'other', exp: Date.now() / 1000 + 60 };
+  assert.equal(
+    (await callback(d.cookie, { code: 'x', state: d.state })).headers.get('location'),
+    '/?login=failed',
+  );
+  const e = await start();
+  claims = { ...good, exp: Date.now() / 1000 - 1 };
+  assert.equal(
+    (await callback(e.cookie, { code: 'x', state: e.state })).headers.get('location'),
+    '/?login=failed',
   );
 });

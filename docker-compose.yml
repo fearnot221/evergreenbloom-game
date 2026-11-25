@@ -16,6 +16,9 @@ services:
       TRUST_PROXY: ${TRUST_PROXY:-1}
       # Days to keep photos that were not picked; 0 keeps them until set.
       PHOTO_RETENTION_DAYS: ${PHOTO_RETENTION_DAYS:-0}
+      # Optional Google sign-in (OAuth web client); leave both empty to turn it off.
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
     volumes:
       - game-data:/data
     restart: unless-stopped

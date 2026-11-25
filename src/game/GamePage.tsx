@@ -13,6 +13,7 @@ import {
 } from '../data/stamps';
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type GameState, savedTime, useAccount } from './api';
+import { NicknameEditor } from './NicknameEditor';
 import { Progress, reached } from './Progress';
 import { QrScanner } from './QrScanner';
 import { SpotSheet } from './SpotSheet';
@@ -283,7 +284,7 @@ export default function GamePage() {
       )}
       {state && (
         <div className="account-row">
-          <span className="account-name">目前帳號：{state.user.username}</span>
+          <NicknameEditor state={state} onSaved={account.setData} />
           <button
             className="text-button"
             type="button"

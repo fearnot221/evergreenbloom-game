@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { api, type GameState } from './api';
 
 export function AuthForm({
@@ -12,13 +13,50 @@ export function AuthForm({
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
+  const googleResult = params.get('login');
+  params.delete('login');
+  const query = params.toString();
+  const [error, setError] = useState(
+    googleResult === 'failed'
+      ? 'Google 登入沒有完成，請再試一次。'
+      : googleResult === 'cancelled'
+        ? '已取消 Google 登入。'
+        : '',
+  );
+  const [google, setGoogle] = useState(false);
+  useEffect(() => {
+    if (staff) return;
+    api<{ google: boolean }>('/auth/providers')
+      .then((value) => setGoogle(value.google))
+      .catch(() => setGoogle(false));
+  }, [staff]);
   return (
     <section className="auth" aria-labelledby="login-title">
       <h2 id="login-title">
         {staff ? '工作人員登入' : register ? '建立參加者帳號' : '登入集章帳號'}
       </h2>
-      <p className="note">目前使用帳號與密碼登入。SSO 尚未串接；每個參加者帳號限兌獎一次。</p>
+      <p className="note">
+        {google ? '可用 Google 帳號或帳號密碼登入' : '目前使用帳號與密碼登入'}
+        。每個參加者帳號限兌獎一次。
+        {!staff && (
+          <>
+            {' '}
+            <Link className="text-link" to="/privacy">
+              隱私權政策
+            </Link>
+          </>
+        )}
+      </p>
+      {google && (
+        <a
+          className="button"
+          href={`/api/auth/google?next=${encodeURIComponent(location.pathname + (query ? `?${query}` : ''))}`}
+        >
+          使用 Google 登入
+        </a>
+      )}
       <form
         className="code-entry"
         aria-busy={busy}

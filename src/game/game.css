@@ -410,6 +410,25 @@
 
 .account-row .account-name {
   margin-inline-end: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+
+.nickname-form input {
+  width: 12em;
+  min-height: 44px;
+}
+
+.nickname-form .note,
+.nickname-form .quiz-error {
+  flex-basis: 100%;
+  margin: 0;
+}
+
+.nickname-form .quiz-error:empty {
+  display: none;
 }
 
 .text-button {

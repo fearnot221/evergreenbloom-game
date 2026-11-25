@@ -12,6 +12,8 @@ const app = await createApp({
   stampKeys: JSON.parse(process.env.STAMP_KEYS || '{}'),
   trustProxy: process.env.TRUST_PROXY === '1',
   photoRetentionDays: Number(process.env.PHOTO_RETENTION_DAYS) || 0,
+  googleClientId: process.env.GOOGLE_CLIENT_ID,
+  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET,
 });
 app.server.listen(8080, '0.0.0.0', () => console.log('Game server listening on :8080'));
 for (const signal of ['SIGTERM', 'SIGINT']) {

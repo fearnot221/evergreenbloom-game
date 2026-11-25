@@ -1,5 +1,21 @@
 # Festival Web App — architecture and implementation status
 
+## Google sign-in · 2026-11-26
+
+Optional, on when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set. `server/app.mjs`:
+GET /api/auth/providers (`{google}`), GET /api/auth/google (state + PKCE in a 10-minute
+HttpOnly cookie scoped to /api/auth/google, `next` limited to /, /game or /staff),
+GET /api/auth/google/callback (code exchange with Google's token endpoint, ID-token
+iss/aud/exp checked, then the normal session cookie). Schema v3 adds
+`identities(provider, subject, user_id)`; a new subject creates a player with a random
+`g-…` username and password hash `!` (password login never matches). Only `sub` is
+stored, `openid` scope only. No email-based linking to existing password accounts;
+staff stay on passwords. `AuthForm` shows the button when the provider is on and
+reports `?login=failed|cancelled`. Players set a display nickname (POST /api/nickname, ≤ 20 characters, NFKC, '' clears;
+`users.nickname`, also added in v3) in `NicknameEditor`; it never changes the login
+username. `/privacy` (`src/pages/PrivacyPage.tsx`) is the
+privacy policy for the OAuth consent screen, written from what the server stores.
+
 ## 新中大十景 rules · 2026-11-12
 
 Spot data, intros, prize tiers: `src/data/stamps.ts` (shared with the server; no answers

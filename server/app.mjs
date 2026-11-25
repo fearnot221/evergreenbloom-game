@@ -22,6 +22,10 @@ const MAX_PHOTO = 3 * 1024 * 1024;
 const PICKS_PER_SPOT = 3;
 const SESSION_AGE = 7 * 24 * 60 * 60;
 const COOKIE = 'songying-session';
+const OAUTH_COOKIE = 'songying-oauth';
+const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
+/** Where a Google sign-in may return to: the stamp book or staff page, with its query. */
+const RETURN_PATH = /^\/(?:game|staff)?(?:\?[\w=&%.~-]{0,300})?$/;
 const PUBLIC_SPOTS = new Set(stampSpots.map((spot) => spot.id));
 // Server-only answers. Quiz: the correct option's index. Fill: accepted text, compared
 // after normalize(); a reply that contains it ("陳其寬校友") also counts.
@@ -55,6 +59,13 @@ function username(value) {
     fail(400, '帳號須為 3 至 32 個英文字母、數字、點、底線或連字號。');
   return value.trim().toLowerCase();
 }
+/** A display name the player chooses; '' clears it back to the account name. */
+function nickname(value) {
+  if (typeof value !== 'string') fail(400, '暱稱格式錯誤。');
+  const name = value.normalize('NFKC').replace(/\s+/gu, ' ').trim();
+  if ([...name].length > 20 || /\p{C}/u.test(name)) fail(400, '暱稱最多 20 個字，不能含控制字元。');
+  return name || null;
+}
 function password(value) {
   if (typeof value !== 'string' || value.length < 12 || value.length > 128)
     fail(400, '密碼須為 12 至 128 個字元。');
@@ -66,6 +77,8 @@ async function passwordHash(value) {
 }
 async function passwordMatches(value, hash) {
   const [salt, expected] = hash.split(':');
+  // Google-only accounts have no password ('!'), so password login never matches.
+  if (!expected) return false;
   const actual = Buffer.from(await scrypt(value, salt, 64));
   return timingSafeEqual(actual, Buffer.from(expected, 'hex'));
 }
@@ -127,6 +140,10 @@ export async function createApp({
   trustProxy = false,
   // Days to keep photos the organisers did not pick; 0 keeps them (date not yet set).
   photoRetentionDays = 0,
+  // Google sign-in is on only when both are set (OAuth web client, redirect URI
+  // <origin>/api/auth/google/callback).
+  googleClientId = '',
+  googleClientSecret = '',
 }) {
   const publicOrigin = new URL(origin);
   if (
@@ -154,7 +171,7 @@ export async function createApp({
     'PRAGMA foreign_keys=ON; PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;',
   );
   const version = db.prepare('PRAGMA user_version').get().user_version;
-  if (version > 2) throw new Error('Database schema is newer than this server');
+  if (version > 3) throw new Error('Database schema is newer than this server');
   db.exec(
     [
       "CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, role TEXT NOT NULL CHECK(role IN ('player','staff')), redeem_code TEXT NOT NULL UNIQUE, created_at TEXT NOT NULL)",
@@ -171,13 +188,19 @@ export async function createApp({
     db.exec(
       'BEGIN; DROP TABLE IF EXISTS photos; ALTER TABLE redemptions RENAME TO redemptions_v1; COMMIT',
     );
+  // v3 also adds a player-chosen nickname, separate from the login username.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='nickname'").get())
+    db.exec('ALTER TABLE users ADD COLUMN nickname TEXT');
   db.exec(
     [
       "CREATE TABLE IF NOT EXISTS redemptions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), tier TEXT NOT NULL CHECK(tier IN ('meal','merch')), redeemed_at TEXT NOT NULL, reviewer TEXT NOT NULL, stamp_count INTEGER NOT NULL, UNIQUE(user_id,tier))",
       'CREATE INDEX IF NOT EXISTS redemptions_tier ON redemptions(tier)',
       'CREATE TABLE IF NOT EXISTS photos (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id), spot_id TEXT NOT NULL, image BLOB NOT NULL, mime TEXT NOT NULL, consent_at TEXT NOT NULL, submitted_at TEXT NOT NULL, picked_at TEXT, picked_by TEXT, UNIQUE(user_id,spot_id))',
       'CREATE INDEX IF NOT EXISTS photos_spot ON photos(spot_id,submitted_at)',
-      'PRAGMA user_version=2',
+      // v3 (2026-11-26): external sign-in. One row per provider subject; only the stable
+      // subject is kept, never the email or name.
+      'CREATE TABLE IF NOT EXISTS identities (provider TEXT NOT NULL, subject TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id), created_at TEXT NOT NULL, PRIMARY KEY(provider,subject))',
+      'PRAGMA user_version=3',
     ].join(';'),
   );
   const transaction = (fn) => {
@@ -195,7 +218,9 @@ export async function createApp({
   if (existingStaff && existingStaff.role !== 'staff')
     throw new Error('STAFF_USERNAME belongs to a player; choose a different staff account');
   if (!existingStaff) {
-    db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?)').run(
+    db.prepare(
+      'INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,?,?,?,?)',
+    ).run(
       randomUUID(),
       staffName,
       await passwordHash(staffPassword),
@@ -310,7 +335,7 @@ export async function createApp({
   const view = (user) => {
     const count = stampCount(user.id);
     return {
-      user: { id: user.id, username: user.username, role: user.role },
+      user: { id: user.id, username: user.username, nickname: user.nickname, role: user.role },
       stamps: Object.fromEntries(
         db
           .prepare('SELECT spot_id,earned_at FROM stamps WHERE user_id=?')
@@ -350,6 +375,49 @@ export async function createApp({
     res.writeHead(status, { 'Content-Type': 'application/json;charset=utf-8' });
     res.end(JSON.stringify(value));
   };
+  const google = Boolean(googleClientId && googleClientSecret);
+  const redirectUri = `${origin}/api/auth/google/callback`;
+  const oauthCookie = (value, maxAge) =>
+    `${OAUTH_COOKIE}=${value}; Path=/api/auth/google; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${publicOrigin.protocol === 'https:' ? '; Secure' : ''}`;
+  const redirect = (res, location) => {
+    res.writeHead(303, { Location: location });
+    res.end();
+  };
+  /** Exchange the code at Google's token endpoint and return the account's subject. */
+  const googleSubject = async (code, verifier) => {
+    const response = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({
+        code,
+        client_id: googleClientId,
+        client_secret: googleClientSecret,
+        redirect_uri: redirectUri,
+        grant_type: 'authorization_code',
+        code_verifier: verifier,
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!response.ok) fail(502, 'Google 登入失敗，請再試一次。');
+    const idToken = (await response.json()).id_token;
+    // The ID token came straight from Google over TLS in exchange for our code, so its
+    // claims are checked without a signature check (OpenID Connect Core 3.1.3.7).
+    let claims;
+    try {
+      claims = JSON.parse(Buffer.from(idToken.split('.')[1], 'base64url').toString('utf8'));
+    } catch {
+      fail(502, 'Google 登入失敗，請再試一次。');
+    }
+    if (
+      !GOOGLE_ISSUERS.includes(claims.iss) ||
+      claims.aud !== googleClientId ||
+      !(claims.exp * 1000 > Date.now()) ||
+      typeof claims.sub !== 'string' ||
+      !/^\w{1,255}$/.test(claims.sub)
+    )
+      fail(502, 'Google 登入失敗，請再試一次。');
+    return claims.sub;
+  };
   async function api(req, res, url) {
     res.setHeader('Cache-Control', 'no-store');
     res.setHeader('Referrer-Policy', 'no-referrer');
@@ -359,6 +427,87 @@ export async function createApp({
       req.socket.remoteAddress;
     // Per address: generous, since campus Wi-Fi puts many players behind one IP. The
     // per-username limit on login is what stops password guessing.
+    if (url.pathname === '/api/auth/providers' && req.method === 'GET')
+      return send(res, 200, { google });
+    if (url.pathname === '/api/auth/google' && req.method === 'GET') {
+      if (!google) fail(404, '尚未開放 Google 登入。');
+      limited(`auth:${ip}`, 300);
+      const next = url.searchParams.get('next') ?? '/';
+      const state = token();
+      const verifier = token();
+      res.setHeader(
+        'Set-Cookie',
+        oauthCookie(
+          `${state}.${verifier}.${Buffer.from(RETURN_PATH.test(next) ? next : '/').toString('base64url')}`,
+          600,
+        ),
+      );
+      return redirect(
+        res,
+        `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
+          client_id: googleClientId,
+          redirect_uri: redirectUri,
+          response_type: 'code',
+          scope: 'openid',
+          state,
+          code_challenge: createHash('sha256').update(verifier).digest('base64url'),
+          code_challenge_method: 'S256',
+          prompt: 'select_account',
+        })}`,
+      );
+    }
+    if (url.pathname === '/api/auth/google/callback' && req.method === 'GET') {
+      if (!google) fail(404, '尚未開放 Google 登入。');
+      limited(`auth:${ip}`, 300);
+      const saved = (req.headers.cookie ?? '')
+        .split(';')
+        .map((part) => part.trim())
+        .find((part) => part.startsWith(`${OAUTH_COOKIE}=`))
+        ?.slice(OAUTH_COOKIE.length + 1)
+        .split('.');
+      res.setHeader('Set-Cookie', oauthCookie('', 0));
+      const [state, verifier, packed] = saved ?? [];
+      const value = Buffer.from(packed ?? '', 'base64url').toString('utf8');
+      const next = RETURN_PATH.test(value) ? value : '/';
+      const back = (error) =>
+        redirect(res, `${next}${next.includes('?') ? '&' : '?'}login=${error}`);
+      const code = url.searchParams.get('code');
+      if (
+        !state ||
+        !verifier ||
+        !code ||
+        code.length > 2048 ||
+        sha(url.searchParams.get('state') ?? '') !== sha(state)
+      )
+        return back(url.searchParams.get('error') === 'access_denied' ? 'cancelled' : 'failed');
+      let subject;
+      try {
+        subject = await googleSubject(code, verifier);
+      } catch (error) {
+        if (!error.status) console.error('Google sign-in failed:', error.code ?? error.name);
+        return back('failed');
+      }
+      const id = transaction(() => {
+        const found = db
+          .prepare("SELECT user_id FROM identities WHERE provider='google' AND subject=?")
+          .get(subject);
+        if (found) return found.user_id;
+        // A new player with a random name; the Google account's email is not stored.
+        const fresh = randomUUID();
+        let name;
+        do name = `g-${randomBytes(5).toString('hex')}`;
+        while (db.prepare('SELECT 1 FROM users WHERE username=?').get(name));
+        db.prepare(
+          'INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,?,?,?,?)',
+        ).run(fresh, name, '!', 'player', randomBytes(12).toString('hex').toUpperCase(), date());
+        db.prepare("INSERT INTO identities VALUES ('google',?,?,?)").run(subject, fresh, date());
+        return fresh;
+      });
+      issueSession(res, id);
+      // Keep clearing the one-time OAuth state alongside the new session cookie.
+      res.setHeader('Set-Cookie', [res.getHeader('Set-Cookie'), oauthCookie('', 0)]);
+      return redirect(res, next);
+    }
     if (url.pathname === '/api/register' && req.method === 'POST') {
       limited(`auth:${ip}`, 300);
       const input = await jsonBody(req);
@@ -372,14 +521,9 @@ export async function createApp({
         // Concurrent registrations are serialized by the unique username constraint.
         if (db.prepare('SELECT id FROM users WHERE username=?').get(name))
           fail(409, '此帳號已有人使用。');
-        db.prepare('INSERT INTO users VALUES (?,?,?,?,?,?)').run(
-          id,
-          name,
-          hash,
-          'player',
-          randomBytes(12).toString('hex').toUpperCase(),
-          date(),
-        );
+        db.prepare(
+          'INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,?,?,?,?)',
+        ).run(id, name, hash, 'player', randomBytes(12).toString('hex').toUpperCase(), date());
         issueSession(res, id);
       });
       return send(res, 201, view(db.prepare('SELECT * FROM users WHERE id=?').get(id)));
@@ -404,6 +548,13 @@ export async function createApp({
     }
     if (url.pathname === '/api/me' && req.method === 'GET')
       return send(res, 200, view(userFor(req)));
+    if (url.pathname === '/api/nickname' && req.method === 'POST') {
+      const user = userFor(req);
+      limited(`nickname:${user.id}`, 20);
+      const name = nickname((await jsonBody(req)).nickname);
+      db.prepare('UPDATE users SET nickname=? WHERE id=?').run(name, user.id);
+      return send(res, 200, view({ ...user, nickname: name }));
+    }
     if (url.pathname === '/api/resolve' && req.method === 'POST') {
       const user = playerFor(req);
       limited(`claim:${user.id}`, 60);
@@ -614,7 +765,7 @@ export async function createApp({
       } catch {}
       if (!info?.isFile()) {
         if (
-          !/^\/(?:game|map|play|staff)?\/?$/.test(decoded) &&
+          !/^\/(?:game|map|play|staff|privacy)?\/?$/.test(decoded) &&
           !/^\/stamp\/[a-z-]+\/?$/.test(decoded)
         )
           fail(404, '找不到檔案。');

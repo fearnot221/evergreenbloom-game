@@ -58,7 +58,7 @@ const faq = [
   },
   {
     q: '要用學校帳號登入嗎？',
-    a: '目前以帳號與密碼註冊及登入，學校帳號等單一登入（SSO）尚未串接。集章與兌獎紀錄存在伺服器。',
+    a: '可以用 Google 帳號登入，或以帳號與密碼註冊。學校帳號登入尚未串接。Google 登入只保存帳號識別碼，不保存 email 或姓名。',
   },
   {
     q: '忘記密碼怎麼辦？',
@@ -202,7 +202,13 @@ export default function PlayPage() {
           <li>請拍指定的場景，避免拍到其他人的臉；如果不小心拍到人，請重拍再上傳。</li>
           <li>照片會先在你的手機縮小再上傳，上限 3 MB。</li>
         </ul>
-        <p className="note">照片的保存期限與刪除方式待主辦單位公告。正式隱私權政策待確認後公布。</p>
+        <p className="note">
+          照片的保存期限與刪除方式待主辦單位公告。完整說明請見
+          <Link className="text-link" to="/privacy">
+            隱私權政策
+          </Link>
+          。
+        </p>
       </section>
 
       <section aria-labelledby="faq-title">

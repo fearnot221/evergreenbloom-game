@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Squirrel } from '../components/motifs';
 import { api, type GameState } from './api';
 
 export function AuthForm({
@@ -16,7 +15,6 @@ export function AuthForm({
   const [error, setError] = useState('');
   return (
     <section className="auth" aria-labelledby="login-title">
-      {!staff && <Squirrel className="auth-squirrel" />}
       <h2 id="login-title">
         {staff ? '工作人員登入' : register ? '建立參加者帳號' : '登入集章帳號'}
       </h2>

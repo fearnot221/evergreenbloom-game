@@ -51,8 +51,8 @@ v5 with v6 「櫻吹雪 · 一陣風」 (see [DESIGN.md](DESIGN.md)); the invent
 ### Motion without GSAP (2026-11-13)
 
 GSAP and @gsap/react were removed (audit: about 45 KB gzip for two effects). The guide's
-three task seals press on with CSS `seal-press` once an IntersectionObserver sees them
-(a 4 s fallback presses them anyway, so they are never left hidden); 集章成功 uses CSS
+three task seals are static (their `seal-press` entrance was removed at the user's
+request on 2026-11-26); 集章成功 uses CSS
 `seal-drop` / `seal-settle`, staggered `copy-rise`, and a CSS petal burst whose petals
 carry their own direction, spin and size as custom properties. Reduced motion: the burst
 and shower are hidden and other durations collapse (base.css). The v7 section below

@@ -60,7 +60,7 @@
   font-weight: 800;
 }
 
-/* 答 · 拍 · 填: three seals, pressed on one by one when they scroll into view. */
+/* 答 · 拍 · 填: three seals, static. */
 .seal-methods {
   display: grid;
   gap: var(--space-5);
@@ -112,30 +112,67 @@
   background: var(--sakura);
 }
 
-/* Stamp spots: each with its task seal, task and map link. */
+/* Stamp spots: two columns of cards on phones (seal, then name and task), each a link
+   to the spot on the map. */
 .spot-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(8rem, 100%), 1fr));
+  gap: var(--space-3);
   inline-size: 100%;
 }
 
-.spot-list > li {
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-4);
-  align-items: start;
+/* Wide screens: the ten as five by two, with no short last row. */
+@media (min-width: 48rem) {
+  .spot-list {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.spot-link {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  justify-items: start;
+  block-size: 100%;
+  padding: var(--space-3);
+  border: 2px dashed var(--line);
+  border-radius: var(--radius-s);
+  color: var(--ink);
+  text-decoration: none;
+  transition: background-color var(--dur-quick) var(--ease-out);
+}
+
+@media (hover: hover) {
+  .spot-link:hover {
+    background: rgb(250 172 170 / 0.28);
+  }
+}
+
+.spot-link:active {
+  background: rgb(250 172 170 / 0.28);
 }
 
 .spot-seal {
   display: grid;
   place-items: center;
-  inline-size: 3rem;
+  inline-size: 2.1rem;
   aspect-ratio: 0.88;
   clip-path: var(--hex);
   background: var(--sakura);
   color: var(--cream);
-  font-size: 1.3rem;
+  font-size: 0.95rem;
+}
+
+.spot-name {
+  display: block;
+  font-weight: 800;
+  line-height: 1.35;
 }
 
 .spot-method {
+  display: block;
   color: var(--rose-text);
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 
@@ -186,7 +223,7 @@
   padding-bottom: var(--space-4);
 }
 
-/* 集章獎勵: the three milestones as hexagon counts. */
+/* 集章獎勵: the two prize milestones as hexagon counts. */
 .milestones {
   inline-size: 100%;
 }
@@ -211,28 +248,4 @@
   margin-inline-end: 0.4em;
   color: var(--rose-text);
   font-size: 0.85em;
-}
-
-.seal-methods.is-waiting .seal {
-  opacity: 0;
-}
-
-.seal-methods.is-pressed .seal {
-  animation: seal-press 0.4s cubic-bezier(0.5, 0, 0.75, 0) both;
-}
-
-.seal-methods.is-pressed li:nth-child(2) .seal {
-  animation-delay: 0.28s;
-  --tilt: 8deg;
-}
-
-.seal-methods.is-pressed li:nth-child(3) .seal {
-  animation-delay: 0.56s;
-}
-
-@keyframes seal-press {
-  from {
-    opacity: 0;
-    transform: scale(1.45) rotate(var(--tilt, -8deg));
-  }
 }

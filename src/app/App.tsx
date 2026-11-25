@@ -63,20 +63,18 @@ export default function App() {
         )}
       </p>
       <Outlet />
-      <ScrollRestoration getKey={(location) => location.pathname + location.search} />
-      <footer className="app-footer">
+      {/* One scroll position per page, not per query: picking a spot on the map or a QR
+          claim changes only ?spot=…, and must not jump to an old position. */}
+      <ScrollRestoration getKey={(location) => location.pathname} />
+      <footer className="app-footer" aria-hidden="true">
         <div className="footer-art" aria-hidden="true">
           <Cloud tone="light" shape="tall" className="footer-cloud footer-cloud-1" />
           <Cloud tone="pink" shape="wide" className="footer-cloud footer-cloud-2" />
           <Cloud tone="light" shape="low" className="footer-cloud footer-cloud-3" />
           <StarMark className="footer-star" />
         </div>
-        <div className="footer-body">
-          <p className="note">集章遊戲原型，位置與任務待確認。驗章與兌獎需要連線；SSO 尚未串接。</p>
-          <a className="text-link" href={websiteHref()}>
-            返回活動官網
-          </a>
-        </div>
+        {/* The night-sky ground the clouds rise from; on phones it sits behind the tab bar. */}
+        <div className="footer-body" />
       </footer>
     </div>
   );

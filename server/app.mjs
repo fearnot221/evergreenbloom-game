@@ -66,6 +66,9 @@ function nickname(value) {
   if ([...name].length > 20 || /\p{C}/u.test(name)) fail(400, '暱稱最多 20 個字，不能含控制字元。');
   return name || null;
 }
+/** A Google sign-in keeps its random placeholder name until the player picks one. */
+const GOOGLE_PLACEHOLDER = /^g-[0-9a-f]{10}$/;
+const needsSetup = (user) => user.password_hash === '!' && GOOGLE_PLACEHOLDER.test(user.username);
 function password(value) {
   if (typeof value !== 'string' || value.length < 12 || value.length > 128)
     fail(400, '密碼須為 12 至 128 個字元。');
@@ -302,6 +305,7 @@ export async function createApp({
   const playerFor = (req) => {
     const user = userFor(req);
     if (user.role !== 'player') fail(403, '工作人員帳號不參加集章兌獎。');
+    if (needsSetup(user)) fail(403, '請先設定帳號 ID 與暱稱。');
     return user;
   };
   /** Stamps that count: only spots that exist now (renamed spots no longer count). */
@@ -335,7 +339,13 @@ export async function createApp({
   const view = (user) => {
     const count = stampCount(user.id);
     return {
-      user: { id: user.id, username: user.username, nickname: user.nickname, role: user.role },
+      user: {
+        id: user.id,
+        username: user.username,
+        nickname: user.nickname,
+        role: user.role,
+        setup: needsSetup(user),
+      },
       stamps: Object.fromEntries(
         db
           .prepare('SELECT spot_id,earned_at FROM stamps WHERE user_id=?')
@@ -554,6 +564,24 @@ export async function createApp({
       const name = nickname((await jsonBody(req)).nickname);
       db.prepare('UPDATE users SET nickname=? WHERE id=?').run(name, user.id);
       return send(res, 200, view({ ...user, nickname: name }));
+    }
+    if (url.pathname === '/api/profile' && req.method === 'POST') {
+      const user = userFor(req);
+      limited(`nickname:${user.id}`, 20);
+      if (!needsSetup(user)) fail(409, '帳號 ID 已設定，不能再更改。');
+      const input = await jsonBody(req);
+      // Stricter than password-account names; it also rules out the g-… placeholder.
+      if (typeof input.username !== 'string' || !/^[a-z0-9]{8,16}$/i.test(input.username.trim()))
+        fail(400, '帳號 ID 須為 8 至 16 個英文字母或數字。');
+      const name = input.username.trim().toLowerCase();
+      const nick = nickname(input.nickname);
+      if (!nick) fail(400, '請輸入暱稱。');
+      transaction(() => {
+        if (db.prepare('SELECT 1 FROM users WHERE username=?').get(name))
+          fail(409, '此帳號已有人使用。');
+        db.prepare('UPDATE users SET username=?, nickname=? WHERE id=?').run(name, nick, user.id);
+      });
+      return send(res, 200, view(db.prepare('SELECT * FROM users WHERE id=?').get(user.id)));
     }
     if (url.pathname === '/api/resolve' && req.method === 'POST') {
       const user = playerFor(req);

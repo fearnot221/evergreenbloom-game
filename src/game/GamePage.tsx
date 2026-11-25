@@ -14,6 +14,7 @@ import {
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type GameState, savedTime, useAccount } from './api';
 import { NicknameEditor } from './NicknameEditor';
+import { ProfileSetup } from './ProfileSetup';
 import { Progress, reached } from './Progress';
 import { QrScanner } from './QrScanner';
 import { SpotSheet } from './SpotSheet';
@@ -49,7 +50,7 @@ export default function GamePage() {
     setError((error as Error).message);
     if (error instanceof ApiError && error.status === 401) account.setData(null);
   };
-  const player = state && state.user.role === 'player';
+  const player = state && state.user.role === 'player' && !state.user.setup;
   /** A printed station code, typed or scanned: the server says which spot it opens. */
   const resolveCode = async (value: string) => {
     setBusy(true);
@@ -112,7 +113,8 @@ export default function GamePage() {
           </p>
         </>
       )}
-      {state && !player && (
+      {state?.user.setup && <ProfileSetup onSaved={account.setData} />}
+      {state && state.user.role !== 'player' && (
         <p>
           工作人員帳號不參加集章兌獎。請前往 <Link to="/staff">兌獎核銷</Link>。
         </p>
@@ -284,7 +286,7 @@ export default function GamePage() {
       )}
       {state && (
         <div className="account-row">
-          <NicknameEditor state={state} onSaved={account.setData} />
+          {!state.user.setup && <NicknameEditor state={state} onSaved={account.setData} />}
           <button
             className="text-button"
             type="button"

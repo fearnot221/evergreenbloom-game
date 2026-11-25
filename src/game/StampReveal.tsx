@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Petal, Squirrel } from '../components/motifs';
+import { Petal } from '../components/motifs';
 import { PetalBurst } from '../components/PetalBurst';
 import { display } from '../data/display-copy';
 import type { StampSpot } from '../data/stamps';
@@ -64,7 +64,6 @@ export function StampReveal({
           <div className="reveal-seal cone" aria-hidden="true">
             <span className="display">{spot.name.slice(0, 2)}</span>
           </div>
-          <Squirrel className="reveal-squirrel" />
           <div className="reveal-copy">
             <p className="display reveal-kicker">{display.sections.stamped}</p>
             <h2 id="reveal-title">{spot.name}</h2>

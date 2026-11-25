@@ -1,17 +1,8 @@
-import { useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowUpRightIcon, MapTrifoldIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import { display } from '../data/display-copy';
-import {
-  getSpot,
-  lulin,
-  methodLabels,
-  prizes,
-  SHOWER_AT,
-  type StampMethod,
-  stampSpots,
-} from '../data/stamps';
+import { getSpot, lulin, methodLabels, prizes, type StampMethod, stampSpots } from '../data/stamps';
 import { readClaim } from '../game/stamp-store';
 import '../styles/pages.css';
 
@@ -32,7 +23,7 @@ const steps = [
   },
   {
     title: '進度往前、兌換獎勵',
-    text: `集滿 ${SHOWER_AT} 個章櫻花撒落；集滿 ${prizes.meal.need} 個、${prizes.merch.need} 個章可以到兌獎處兌換獎品。`,
+    text: `集滿 ${prizes.meal.need} 個、${prizes.merch.need} 個章可以到兌獎處兌換獎品。`,
   },
 ];
 
@@ -62,20 +53,12 @@ const faq = [
     a: '在集章冊的「輸入集章點代碼」欄位，輸入 QR Code 下方印的代碼。',
   },
   {
-    q: '題目答錯會怎樣？',
-    a: '不會扣分，也沒有次數限制。重新作答到答對，就會跳出景點介紹並集章。',
-  },
-  {
-    q: '照片要拍得很好才能集章嗎？',
-    a: '不用。照片上傳就集章；拍得特別好的，有機會被選為該關卡的前 3 名佳作。',
-  },
-  {
-    q: '餐券和週邊兩樣都可以領嗎？',
-    a: `可以。集滿 ${prizes.meal.need} 個章先領${prizes.meal.name}，集滿 ${prizes.merch.need} 個章再領${prizes.merch.name}，每樣每人一次，各限前 ${prizes.meal.stock} 名。`,
-  },
-  {
     q: '換手機或清除瀏覽器資料，進度會不見嗎？',
     a: '不會。進度存在伺服器，用同一個帳號登入就能繼續。',
+  },
+  {
+    q: '要用學校帳號登入嗎？',
+    a: '目前以帳號與密碼註冊及登入，學校帳號等單一登入（SSO）尚未串接。集章與兌獎紀錄存在伺服器。',
   },
   {
     q: '忘記密碼怎麼辦？',
@@ -85,33 +68,6 @@ const faq = [
 
 export default function PlayPage() {
   useDocumentTitle(display.pages.play);
-  // 印章: the three task seals press on one by one when they scroll into view (CSS
-  // `seal-press` in pages.css). Reduced motion: they are simply there.
-  const seals = useRef<HTMLOListElement>(null);
-  useEffect(() => {
-    const list = seals.current;
-    if (!list || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    list.classList.add('is-waiting');
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry.isIntersecting) return;
-        list.classList.replace('is-waiting', 'is-pressed');
-        observer.disconnect();
-      },
-      { rootMargin: '0px 0px -20% 0px' },
-    );
-    observer.observe(list);
-    // Never leave content hidden: if the observer has not fired (a background tab, an
-    // old browser), press the seals on anyway.
-    const fallback = window.setTimeout(
-      () => list.classList.replace('is-waiting', 'is-pressed'),
-      4000,
-    );
-    return () => {
-      observer.disconnect();
-      window.clearTimeout(fallback);
-    };
-  }, []);
   // An old QR link may still land here; send the claim on to the stamp book.
   const [params] = useSearchParams();
   const claim = readClaim(params);
@@ -166,8 +122,8 @@ export default function PlayPage() {
         <h2 className="display section-title" id="how-title">
           {display.sections.howStamp}
         </h2>
-        {/* 印章: the three task types, each pressed on as a seal. */}
-        <ol className="seal-methods" ref={seals}>
+        {/* 印章: the three task types, each as a seal. */}
+        <ol className="seal-methods">
           {methods.map((method) => (
             <li key={method.id}>
               <span className="display seal cone" aria-hidden="true">
@@ -184,23 +140,22 @@ export default function PlayPage() {
         <h2 className="display section-title" id="spots-title">
           {display.sections.spots}
         </h2>
-        <ol className="rows spot-list">
+        <p>點任一景點，在集章地圖上看它的位置與介紹。</p>
+        <ol className="spot-list">
           {stampSpots.map((item) => (
             <li key={item.id}>
-              <span className="display spot-seal cone" aria-hidden="true">
-                {display.flows.seals[item.method]}
-              </span>
-              <div>
-                <h3>
-                  <span className="latin stamp-no">{item.no}</span>
-                  {item.name}
-                </h3>
-                <p className="spot-method">{methodLabels[item.method]}</p>
-                <Link className="text-link" to={`/map?spot=${item.id}`}>
-                  <MapTrifoldIcon size={18} aria-hidden="true" />
-                  在地圖上看<span className="sr-only">：{item.name}</span>
-                </Link>
-              </div>
+              <Link className="spot-link" to={`/map?spot=${item.id}`}>
+                <span className="display spot-seal cone" aria-hidden="true">
+                  {display.flows.seals[item.method]}
+                </span>
+                <span>
+                  <span className="spot-name">
+                    <span className="latin stamp-no">{item.no}</span>
+                    {item.name}
+                  </span>
+                  <span className="spot-method">{methodLabels[item.method]}</span>
+                </span>
+              </Link>
             </li>
           ))}
         </ol>
@@ -214,10 +169,6 @@ export default function PlayPage() {
           {display.sections.prize}
         </h2>
         <ol className="rows milestones">
-          <li>
-            <span className="latin milestone-at">{SHOWER_AT}</span>
-            <p>集滿 {SHOWER_AT} 個章，櫻花為你撒落。</p>
-          </li>
           {(['meal', 'merch'] as const).map((tier) => (
             <li key={tier}>
               <span className="latin milestone-at">{prizes[tier].need}</span>
@@ -233,20 +184,10 @@ export default function PlayPage() {
           <li>兩樣獎品都可以領，每樣每人限一次；先兌先得，兌完為止。</li>
           <li>
             拍照關卡另有佳作獎：主辦單位會從每個拍照關卡選出 3
-            張拍得最好的照片，贈送當天活動市集的餐券；獲選者會在集章冊看到通知。
+            張拍得最好的照片，贈送當天活動市集的餐券；獲選名單會公告在松櫻祭官方粉專。
           </li>
         </ul>
         <p className="note">兌獎處的位置與開放時間待公布。</p>
-      </section>
-
-      <section aria-labelledby="signin-title">
-        <h2 className="display section-title" id="signin-title">
-          {display.sections.signIn}
-        </h2>
-        <p>目前以帳號與密碼註冊及登入，集章與兌獎紀錄保存在伺服器。</p>
-        <p className="note">
-          學校帳號等單一登入（SSO）尚未串接。請妥善保存密碼，目前尚未提供自助找回密碼功能。
-        </p>
       </section>
 
       <section id="privacy" aria-labelledby="privacy-title">

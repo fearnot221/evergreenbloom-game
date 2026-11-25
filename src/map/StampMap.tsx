@@ -1,11 +1,12 @@
-import { type CSSProperties, useEffect, useRef } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { ArrowUpRightIcon, CheckIcon } from '../components/icons';
+import { type CSSProperties, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { ArrowUpRightIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import campus from '../data/campus-map.json';
 import { display } from '../data/display-copy';
-import { getSpot, lulin, methodLabels, stampSpots } from '../data/stamps';
+import { getSpot, lulin, stampSpots } from '../data/stamps';
 import { useAccount } from '../game/api';
+import { LulinSheet, SpotSheet } from '../game/SpotSheet';
 import '../styles/pages.css';
 import './stamp-map.css';
 
@@ -13,6 +14,16 @@ const [fx, fy, fw, fh] = campus.frame;
 const [lon0, lat0] = campus.origin;
 const [kx, ky] = campus.scale;
 /** A spot's position as a percentage of the drawn frame (same projection as the build). */
+/**
+ * Where each name sits around its marker. Below by default; these spots crowd their
+ * neighbours (中正圖書館 under 大禮堂, 太極銅雕 into 總圖書館), so their names move.
+ */
+const LABEL: Record<string, 'above' | 'right'> = {
+  'chungcheng-library': 'above',
+  taichi: 'above',
+  'main-library': 'right',
+};
+
 const place = ([lon, lat]: [number, number]) => ({
   '--x': `${(((lon - lon0) * kx - fx) / fw) * 100}%`,
   '--y': `${((-(lat - lat0) * ky - fy) / fh) * 100}%`,
@@ -20,19 +31,26 @@ const place = ([lon, lat]: [number, number]) => ({
 
 /**
  * 集章地圖: 新中大十景 on an illustrated campus (OpenStreetMap, simplified). Each landmark
- * is a button; the panel below shows the spot. A spot's full introduction unlocks once it
- * is collected, because several intros contain their own quiz answer. 鹿林天文台 is
- * on 鹿林前山, far off campus: a marker past the frame's edge, not a stamp.
+ * is a button that opens the spot's sheet with its full introduction. 鹿林天文台 is on
+ * 鹿林前山, far off campus: a marker past the frame's edge, not a stamp.
  */
 export default function StampMap() {
   useDocumentTitle(display.pages.stampMap);
   const [params, setParams] = useSearchParams();
   const account = useAccount();
   const collected = account.data?.stamps ?? {};
-  const selected = params.get('spot');
+  // The open sheet. Read from the URL once (a link from the play page or a sheet), then
+  // owned here: the URL only mirrors it, so a quick re-tap never races a navigation.
+  const [selected, setSelected] = useState(() => params.get('spot'));
   const spot = getSpot(selected);
-  const select = (id: string) =>
+  const clear = () => {
+    setSelected(null);
+    setParams({}, { replace: true, preventScrollReset: true });
+  };
+  const select = (id: string) => {
+    setSelected(id);
     setParams({ spot: id }, { replace: true, preventScrollReset: true });
+  };
   // On a phone the map scrolls sideways; bring the chosen landmark into view.
   const frame = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -44,7 +62,7 @@ export default function StampMap() {
   return (
     <Page
       title={display.pages.stampMap}
-      lede="新中大十景分布在校園各處。點地標看看它在哪裡、要完成什麼任務；集到章之後，就能讀到完整的景點介紹。"
+      lede="新中大十景分布在校園各處。點地標看景點介紹與它的任務，到現場掃描 QR Code 就能集章。"
       className="stamp-map-page"
     >
       <section aria-labelledby="map-title">
@@ -72,6 +90,7 @@ export default function StampMap() {
                 <button
                   key={item.id}
                   data-spot={item.id}
+                  data-label={LABEL[item.id] ?? 'below'}
                   type="button"
                   className={`pin${done ? ' is-done' : ''}${item.id === selected ? ' is-selected' : ''}`}
                   style={place(item.at) as CSSProperties}
@@ -105,46 +124,16 @@ export default function StampMap() {
         </div>
       </section>
 
-      <section className="map-panel" aria-live="polite" aria-labelledby="panel-title">
-        {spot ? (
-          <>
-            <p className="panel-kicker">
-              第 {spot.no} 景・{methodLabels[spot.method]}
-              {collected[spot.id] && (
-                <span className="panel-done">
-                  <CheckIcon size={14} aria-hidden="true" /> 已集章
-                </span>
-              )}
-            </p>
-            <h2 id="panel-title">{spot.name}</h2>
-            {collected[spot.id] ? (
-              <p>{spot.intro}</p>
-            ) : (
-              <p>
-                到現場掃描 QR Code，完成「{methodLabels[spot.method]}
-                」任務，就能讀到這裡的景點介紹。
-              </p>
-            )}
-            {spot.approx && <p className="note">地圖上的位置為概略位置，請以現場集章牌為準。</p>}
-            <Link className="text-link" to="/">
-              打開集章冊
-            </Link>
-          </>
-        ) : selected === 'lulin' ? (
-          <>
-            <p className="panel-kicker">新中大十景・校外</p>
-            <h2 id="panel-title">{lulin.name}</h2>
-            <p className="note">{lulin.place}</p>
-            <p>{lulin.intro}</p>
-            <p className="note">鹿林天文台遠在玉山，不設集章點；校園集章改以太極銅雕代替。</p>
-          </>
-        ) : (
-          <>
-            <h2 id="panel-title">點一個地標</h2>
-            <p>地圖上的數字是新中大十景的編號，櫻花色的是你已經集到的章。</p>
-          </>
-        )}
-      </section>
+      <p className="note map-hint">
+        點地圖上的地標看景點介紹。數字是新中大十景的編號，櫻花色的是你已經集到的章。
+      </p>
+      <SpotSheet
+        spot={spot ?? null}
+        done={Boolean(spot && collected[spot.id])}
+        mapLink={false}
+        onClose={clear}
+      />
+      <LulinSheet open={selected === 'lulin'} onClose={clear} />
     </Page>
   );
 }

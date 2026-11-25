@@ -20,7 +20,6 @@ export const display = {
     howToPlay: '集章流程',
     spots: '新中大十景',
     prize: '集章獎勵',
-    signIn: '登入方式',
     privacy: '拍照與隱私',
     howStamp: '三種任務',
     stamped: '集章成功',

@@ -9,7 +9,7 @@ running bands, square corners, no gradients) is retired here.
 
 **Concept.** The key visual supplies ingredients, not a layout. Its elements are redrawn
 one by one in `src/components/motifs.tsx` (cloud with a glowing rim, blossom, outlined
-flower, star, sparkle, meteor, petal, pine cone, acorn, squirrel) and the app is designed
+flower, star, sparkle, meteor, petal, pine cone, acorn; the squirrel was dropped at the user's request on 2026-11-26) and the app is designed
 around the game, not around the poster: a compact night-sky title band, the progress as
 a star map, hexagon seals for stamps and steps, a bottom tab bar on phones. A fine print
 grain sits over the fills (kept at the user's request).
@@ -28,17 +28,18 @@ app layout that uses the elements where they have a job.
 | Title band | Left-aligned like an app screen title: eyebrow (sakura · 國立中央大學 · 第二屆松櫻祭), title (cream → blush gradient at the font's own weight; a faux-bold stroke was tried and dropped because it fused dense characters), lede, optional `aside`. A sakura bough (`Sakura.tsx`) grows in from the top-right corner, as tall as the band (at least 28rem) and trimmed by its edges; on phones it sits smaller in the top corner above the title. A row of cloud tops closes the band | `components/page.tsx`, `Sakura.tsx`, `shell.css` |
 | Progress | 集章冊 puts the count and a star map in the band: spots are hexagon nodes on a dotted teal route, lit as a star when collected | `game/StarMap.tsx`, `game.css` |
 | Shapes | Stamps are plump pine cones (章 = 松果, 2026-11-12): `.cone` masks a seal with `--cone` (plump, about 90% as wide as tall: overlapping scales and a stem) and lays `--cone-scales` (V-shaped scale tips) over the fill; used for the stamp grid, spot sheet, 集章成功, the task seal and the guide's task and spot seals. Numbered markers keep the hexagon (`--hex`): progress stops, step numbers, map pins, prize counts | `tokens.css`, `components.css` |
-| Squirrel | Has a job, not a pose: greets first-time players beside sign-in, cheers on 集章成功 | `AuthForm.tsx`, `StampReveal.tsx` |
 | Navigation | Wide screens: pills with icons in the header. Phones (≤40rem): a fixed bottom tab bar, four icon + label tabs, current tab star-yellow | `App.tsx`, `shell.css` |
 | Texture | `public/art/grain.png`, a 180px raster speckle tile (no blend modes, cheap under pinch-zoom), layered on the header, page ground, sheet, buttons, seals and footer | `tokens.css` `--grain` |
 | Marks | `StarMark` (footer) and `BloomMark` (brand, eyebrow; one flower from the sakura geometry) | `components/motifs.tsx` |
 | Sheet | One cream panel per page with grain, rounded 2rem, the badge's dotted teal inner edge and a soft white rim like the clouds' glow | `shell.css` |
 | Controls | Pill buttons: star-yellow with grain, an ink edge and a 4px ink shadow that presses down; secondary is cream. Inputs: white, 2px ink edge, rounded. Quiz answers and consent are whole-row choices that turn star-yellow | `components.css`, `game/game.css` |
-| Stamp book | Phone-first (2026-11-12): the ten spots are one page of hexagon seals, five across (collected: sakura seal with the spot's name; not yet: its number); a tap opens a bottom sheet (centred card on wide screens) with the task type, status, the introduction once collected, and a map link. 掃描 QR Code floats above the tab bar on phones; typed codes fold under 「掃不到？輸入代碼」; prizes are compact cards; the account sits in a quiet row at the end | `game/GamePage.tsx`, `SpotSheet.tsx`, `game.css` |
-| Footer | Cloud tops and a star showing above a rounded night-sky panel with grain | `App.tsx`, `shell.css` |
+| Stamp book | Phone-first (2026-11-12): the ten spots are one page of hexagon seals, five across (collected: sakura seal with the spot's name; not yet: its number); a tap opens a bottom sheet (centred card on wide screens) with the task type, status, the spot's full introduction (always, collected or not), and a map link. 掃描 QR Code floats above the tab bar on phones; typed codes fold under 「掃不到？輸入代碼」; prizes are compact cards; the account sits in a quiet row at the end | `game/GamePage.tsx`, `SpotSheet.tsx`, `game.css` |
+| Stamp map | The campus plate with numbered hexagon landmarks, each named on every screen size (below by default, above or right where names would collide; the map keeps 44rem and scrolls sideways on phones); a tap opens the same spot sheet without the map link, 鹿林天文台 sits below the map as an off-campus point with its own sheet. The open sheet is mirrored to `?spot=` but owned by the page, and changing it never moves the scroll position | `map/StampMap.tsx`, `stamp-map.css`, `SpotSheet.tsx` |
+| 遊戲玩法 | Sections in order: 集章流程, 三種任務, 新中大十景, 集章獎勵, 拍照與隱私, 常見問題. The ten spots are link cards (seal, number and name, task), two across on phones and five by two on wide screens, each opening the spot on the map; sign-in is one FAQ entry, and the FAQ only answers what the sections above do not | `pages/PlayPage.tsx`, `pages.css` |
+| Footer | Decorative only, no text (2026-11-25): cloud tops and a star above a rounded night-sky strip with grain, which on phones sits behind the tab bar; the website link lives in the nav (活動官網) | `App.tsx`, `shell.css` |
 
-**Not drawn.** The NCU logo is left out. The squirrel is a simplified redraw of the
-festival's mascot; replace it with official artwork if supplied.
+**Not drawn.** The NCU logo is left out. The festival's squirrel mascot is not used in the
+game (removed 2026-11-26).
 
 ## Design direction
 

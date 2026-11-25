@@ -1,4 +1,4 @@
-/* 集章地圖: an illustrated campus with landmark buttons, and a panel for the spot. */
+/* 集章地圖: an illustrated campus with landmark buttons; a tap opens the spot sheet. */
 /* Phones: the map keeps a readable size and scrolls sideways inside the sheet. */
 .campus-scroll {
   inline-size: 100%;
@@ -62,15 +62,14 @@
   stroke-width: 1.2;
 }
 
-/* Landmarks: a numbered hexagon on the spot, the name beside it on wide screens. */
+/* The marker sits exactly on the spot; its name hangs off it (below, above or right). */
 .pin {
   position: absolute;
   top: var(--y);
   left: var(--x);
   z-index: 1;
   display: grid;
-  justify-items: center;
-  gap: 0.15rem;
+  place-items: center;
   min-inline-size: 44px;
   min-block-size: 44px;
   padding: 0;
@@ -102,6 +101,10 @@
 }
 
 .pin-name {
+  position: absolute;
+  top: calc(50% + 1.2rem);
+  left: 50%;
+  translate: -50% 0;
   padding: 0 0.4em;
   border-radius: 0.4em;
   background: rgb(253 248 234 / 0.9);
@@ -109,16 +112,33 @@
   font-size: 0.75rem;
   font-weight: 800;
   white-space: nowrap;
+  pointer-events: none;
 }
 
-@media (max-width: 40rem) {
-  .pin-name {
-    display: none;
-  }
+.pin[data-label="above"] .pin-name {
+  top: auto;
+  bottom: calc(50% + 1.2rem);
+}
 
-  .pin.is-selected .pin-name {
-    display: block;
-  }
+.pin[data-label="right"] .pin-name {
+  top: 50%;
+  left: calc(50% + 1.25rem);
+  translate: 0 -50%;
+}
+
+/* The selected marker grows; keep its name clear of it. */
+.pin.is-selected .pin-name {
+  top: calc(50% + 1.45rem);
+}
+
+.pin.is-selected[data-label="above"] .pin-name {
+  top: auto;
+  bottom: calc(50% + 1.45rem);
+}
+
+.pin.is-selected[data-label="right"] .pin-name {
+  top: 50%;
+  left: calc(50% + 1.5rem);
 }
 
 .pin:focus-visible {
@@ -165,25 +185,6 @@
   font-size: 0.6875rem;
 }
 
-.map-panel {
-  min-block-size: 9rem;
-  padding: var(--space-5);
-  border: var(--stroke) solid var(--ink);
-  border-radius: var(--radius-m);
-  background: var(--surface-2);
-}
-
-.panel-kicker {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  color: var(--rose-text);
-  font-weight: 800;
-}
-
-.panel-done {
-  display: inline-flex;
-  gap: 0.2em;
-  align-items: center;
-  color: var(--ink);
+.map-hint {
+  margin-top: var(--space-2);
 }

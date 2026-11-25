@@ -483,23 +483,6 @@
   align-content: start;
 }
 
-/* The squirrel greets first-time players beside the sign-in title. */
-.auth {
-  position: relative;
-}
-
-.auth-squirrel {
-  position: absolute;
-  top: -0.5rem;
-  right: 0;
-  inline-size: clamp(5.5rem, 4rem + 6vw, 8rem);
-  pointer-events: none;
-}
-
-.auth h2 {
-  padding-inline-end: 6rem;
-}
-
 .book-head {
   display: flex;
   flex-wrap: wrap;

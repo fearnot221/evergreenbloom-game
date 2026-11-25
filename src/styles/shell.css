@@ -310,19 +310,10 @@
 
 .footer-body {
   position: relative;
-  display: grid;
-  gap: var(--space-4);
-  justify-items: start;
-  padding: var(--space-7) max(var(--gutter), calc((100% - var(--sheet)) / 2))
-    max(var(--space-7), env(safe-area-inset-bottom));
+  block-size: max(var(--space-7), env(safe-area-inset-bottom));
   /* In front of the clouds, so only their tops show above the rounded edge. */
   border-radius: var(--radius-l) var(--radius-l) 0 0;
   background: var(--night);
-  color: var(--on-sky);
-}
-
-.footer-body .note,
-.footer-body .text-link {
   color: var(--on-sky);
 }
 
@@ -353,6 +344,6 @@
    bar's rounded corners. */
 @media (max-width: 40rem) {
   .footer-body {
-    padding-bottom: calc(var(--space-7) + 4.5rem + env(safe-area-inset-bottom));
+    block-size: calc(4.5rem + env(safe-area-inset-bottom));
   }
 }

@@ -188,13 +188,6 @@ input[type="checkbox"] {
   font-size: 2.2rem;
 }
 
-/* The squirrel cheers from beside the seal. */
-.reveal-squirrel {
-  inline-size: 7rem;
-  margin-top: calc(-1 * var(--space-6));
-  margin-inline-start: 8rem;
-}
-
 .reveal-copy {
   position: relative;
   z-index: 1;
@@ -354,10 +347,17 @@ input[type="checkbox"] {
      under the text. */
   isolation: isolate;
   aspect-ratio: 100 / 112;
-  padding-top: 11%;
+  align-content: center;
   clip-path: none;
   -webkit-mask: var(--cone) center / 100% 100% no-repeat;
   mask: var(--cone) center / 100% 100% no-repeat;
+}
+
+.cone.cone::before {
+  /* Clears the stem so the glyph centres on the body. A child, so its 11% is of the
+     seal's own width; on the seal itself it would be 11% of whatever holds it. */
+  content: "";
+  padding-top: 11%;
 }
 
 .cone.cone::after {

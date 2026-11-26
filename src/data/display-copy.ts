@@ -15,6 +15,7 @@ export const display = {
     game: '集章冊',
     stampMap: '集章地圖',
     staff: '兌獎核銷',
+    stats: '活動數據',
   },
   sections: {
     faq: '常見問題',

@@ -861,3 +861,40 @@
 .sheet-seal:not(.is-done)::after {
   opacity: 0.4;
 }
+
+/* 活動數據: KPI tiles reuse .stock; charts are plain bar lists (value printed as text). */
+.kpi-list {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10rem), 1fr));
+}
+
+.bars {
+  display: grid;
+  gap: var(--space-2);
+  inline-size: 100%;
+}
+
+.bars > li {
+  display: grid;
+  grid-template-columns: minmax(4.5rem, 7rem) minmax(0, 1fr) 3ch;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.bar-track {
+  block-size: 0.875rem;
+  border-radius: 999px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.bar-fill {
+  display: block;
+  block-size: 100%;
+  border-radius: inherit;
+  background: var(--sky);
+}
+
+.bar-value {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}

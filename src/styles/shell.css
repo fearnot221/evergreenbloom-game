@@ -261,6 +261,18 @@
 }
 
 /* Footer: a cloud bank, then back to the night sky ------------------------------- */
+/* Short pages still put the footer at the screen's bottom edge, so on phones it always
+   sits behind the fixed tab bar instead of floating above it. */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app > :has(+ .app-footer) {
+  flex-grow: 1;
+}
+
 .app-footer {
   position: relative;
   margin-top: var(--space-8);

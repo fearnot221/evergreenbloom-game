@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Page, useDocumentTitle } from '../components/page';
+import { display } from '../data/display-copy';
 import { type PrizeTier, prizes, prizeTiers, stampSpots } from '../data/stamps';
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type PrizeState, savedTime, useAccount } from './api';
@@ -114,7 +115,7 @@ type Row = {
 };
 
 export default function StaffPage() {
-  useDocumentTitle('兌獎核銷');
+  useDocumentTitle(display.pages.staff);
   const account = useAccount();
   const [records, setRecords] = useState<Row[]>([]);
   const [code, setCode] = useState('');
@@ -159,7 +160,7 @@ export default function StaffPage() {
   };
 
   return (
-    <Page plainTitle="兌獎核銷" className="game">
+    <Page title={display.pages.staff} className="game">
       <p className="quiz-error" role="alert">
         {account.error || error}
       </p>

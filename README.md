@@ -11,8 +11,10 @@
 
 在 .env 填入：
 
-- STAFF_USERNAME：首次建立的工作人員帳號（3 至 32 個英數、點、底線或連字號）。
-- STAFF_PASSWORD：至少 12 個字元的工作人員密碼，不要使用範例或共用密碼。
+- ADMIN_USERNAME：系統管理員的帳號 ID（Google 登入後設定的 ID），預設 fearnot221。
+  管理員在 /staff 管理工作人員名單。這個 ID 若還沒有人設定，第一個設定它的 Google 帳號
+  就是管理員，所以部署後請管理員先登入設定。
+- GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET：唯一的登入方式，見下方「登入與權限」。
 - STAMP_KEYS：JSON 物件，新中大十景每個集章點一個各不相同的現場代碼（16 至 80 個大寫英數或連字號）：zhongda-road、tingsong、main-library、chungcheng-library、baihua、auditorium、zhongda-lake、friendship-sakura、csrsr-station、taichi。
   每個代碼為 16 至 80 個大寫英數或連字號；可各執行一次 openssl rand -hex 16
   並轉成大寫。不要把代碼或 .env 提交至公開 repo。
@@ -24,11 +26,9 @@
     docker compose up -d --build --wait
     docker compose logs -f
 
-開啟 http://localhost:8080/ ，用瀏覽器直接註冊、登入與集章；/play 是集章說明。
-工作人員用同一套帳密登入 /staff，不使用管理金鑰。
-啟動時未設定必要密碼或現場代碼會直接失敗，不會默默使用公開測試值。
-若本機已由代理人建立 .env，隨機產生的工作人員帳密與現場代碼就在該檔案，
-只用於本機驗證；正式部署請重新設定。
+開啟 http://localhost:8080/ ，用 Google 登入並集章；/play 是集章說明。
+工作人員同樣用 Google 登入 /staff，權限由管理員在名單中指定。
+啟動時未設定現場代碼會直接失敗，不會默默使用公開測試值。
 
 正式伺服器需自行設定 HTTPS 反向代理，轉送至本機埠。預設僅綁定 loopback；
 不會將未加密 API 或資料庫埠開放到外網。代理不得改寫瀏覽器的 Origin。
@@ -36,24 +36,23 @@
 
 ## 登入與權限
 
-參加者可自行註冊帳密帳號；公開註冊永遠只能取得 player 角色。
-密碼使用隨機 salt 與 scrypt 雜湊，不存明碼；登入使用隨機 HttpOnly、
+沒有帳號密碼登入，所有人都用 Google 登入，新帳號一律是 player。登入使用隨機 HttpOnly、
 SameSite=Lax Cookie，資料庫只保存 session token 雜湊，有效期 7 天。
 HTTPS origin 會加上 Secure。登出立即撤銷該 session；不能以客戶端送出的角色或
 user ID 冒充工作人員。所有寫入 API 要求正確 Origin，並有基本頻率與大小限制。
 
-STAFF_USERNAME 是啟動時建立的 staff 帳號。維持同一帳號並更換
-STAFF_PASSWORD 後重新建立容器，會更新密碼並撤銷該工作人員的舊 session。
-更換 STAFF_USERNAME 會新增另一個工作人員，不會撤銷舊帳號的角色；撤銷或額外角色
-管理目前須由受信任的資料庫管理者處理。沒有公開提權 API。
+ADMIN_USERNAME 指定的帳號 ID 是系統管理員，本身有工作人員權限，並可在 /staff
+新增或移除工作人員（GET/POST /api/admin/staff）。對方須先用 Google 登入並設定 ID；
+加入或移除立即生效。工作人員不參加集章兌獎。舊版的帳密工作人員帳號已無法登入，
+啟動時會撤銷其 session。
 
-Google 登入（參加者唯一的登入方式，未設定時參加者無法登入）：設定 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET（Google Cloud
+Google 登入（唯一的登入方式，未設定時沒有人能登入）：設定 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET（Google Cloud
 Console 建立「網頁應用程式」OAuth 用戶端，已授權的重新導向 URI 填
 `<APP_ORIGIN>/api/auth/google/callback`）後，登入表單會出現「使用 Google 登入」。
 伺服器端 authorization code 流程，含 state 與 PKCE，只要求 `openid` scope；
 `identities` 表以 Google `sub` 對應一個參加者帳號（隨機帳號名 `g-…`，無密碼），
-不保存 email 或姓名。參加者只能用 Google 登入（沒有註冊 API，密碼登入只接受工作人員），
-第一次登入須設定 8–16 位英數帳號 ID 與暱稱；工作人員仍用密碼登入。
+不保存 email 或姓名。沒有註冊或密碼登入 API；
+第一次登入須設定 8–16 位英數帳號 ID 與暱稱。
 學校帳號 SSO 尚未串接，沒有自助找回密碼或 email 流程。不同帳號可能屬於同一個人；現階段限制的是
 **每個帳號一次**，不宣稱能辨識自然人。
 

@@ -49,8 +49,7 @@ async function fixture(t, extra = {}) {
   const options = {
     database: path.join(dir, 'game.sqlite'),
     origin,
-    staffUsername: 'staff',
-    staffPassword: secret,
+    adminUsername: 'admin0001',
     stampKeys,
     staticDir: dir,
     googleClientId: 'client.apps',
@@ -80,7 +79,7 @@ async function fixture(t, extra = {}) {
       method: method ?? (data === undefined && raw === undefined ? 'GET' : 'POST'),
       redirect: 'manual',
       headers: {
-        Origin: origin,
+        Origin: options.origin,
         Cookie: cookie,
         ...(data === undefined ? {} : { 'Content-Type': 'application/json' }),
         ...headers,
@@ -128,13 +127,19 @@ async function fixture(t, extra = {}) {
       data: { username: name, nickname: name, role: 'staff' },
     });
     assert.equal(response.status, 200);
-    assert.equal(response.data.user.role, 'player');
+    assert.equal(response.data.user.role, name === options.adminUsername ? 'staff' : 'player');
     return { ...response, cookie: signedIn.cookie, headers: signedIn.headers };
   };
+  /** The admin signs in and adds a fresh account to the staff list; returns its cookie. */
   const staff = async () => {
-    const response = await request('/api/login', { data: { username: 'staff', password: secret } });
-    assert.equal(response.status, 200);
-    return response.cookie;
+    const admin = await register(options.adminUsername);
+    const member = await register('staffer01');
+    const added = await request('/api/admin/staff', {
+      cookie: admin.cookie,
+      data: { username: 'staffer01', staff: true },
+    });
+    assert.equal(added.status, 200);
+    return member.cookie;
   };
   const photo = (cookie, spot, raw = png, extra = {}) =>
     request(`/api/claims/${spot}/photo`, {
@@ -193,34 +198,23 @@ test('login binds server progress to a player, logout revokes the session, role 
   assert.match(player.headers.get('set-cookie'), /SameSite=Lax/);
   assert.equal(player.headers.get('cache-control'), 'no-store');
   assert.equal((await f.request('/api/staff/redemptions', { cookie: player.cookie })).status, 403);
-  // Players have no password route: registration is gone, and a player row never logs in
-  // with a password even if one were set on it.
-  assert.equal(
-    (await f.request('/api/register', { data: { username: 'newplayer1', password: secret } }))
-      .status,
-    404,
-  );
-  const db = new DatabaseSync(f.options.database);
-  t.after(() => db.close());
-  db.prepare(
-    "UPDATE users SET password_hash=(SELECT password_hash FROM users WHERE role='staff') WHERE username='participant'",
-  ).run();
-  assert.equal(
-    (await f.request('/api/login', { data: { username: 'participant', password: secret } })).status,
-    401,
-  );
+  // There is no password route at all: no registration, no password login.
+  for (const route of ['/api/register', '/api/login'])
+    assert.equal(
+      (await f.request(route, { data: { username: 'participant', password: secret } })).status,
+      404,
+    );
   assert.equal((await f.request('/api/logout', { cookie: player.cookie, data: {} })).status, 200);
   assert.equal((await f.request('/api/me', { cookie: player.cookie })).status, 401);
-  const login = await f.request('/api/login', { data: { username: 'STAFF', password: secret } });
-  assert.equal(login.data.user.role, 'staff');
-  const row = db.prepare("SELECT password_hash FROM users WHERE username='staff'").get();
-  assert.notEqual(row.password_hash, secret);
-  assert.match(row.password_hash, /^[a-f0-9]{32}:[a-f0-9]{128}$/);
-  assert.notEqual(
-    db.prepare('SELECT token_hash FROM sessions WHERE user_id=?').get(login.data.user.id)
-      .token_hash,
-    login.cookie.split('=')[1],
-  );
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  // Only a hash of the session token is stored.
+  const second = await f.register('secondone');
+  const row = db
+    .prepare('SELECT token_hash FROM sessions WHERE user_id=?')
+    .get(second.data.user.id);
+  assert.notEqual(row.token_hash, second.cookie.split('=')[1]);
+  assert.equal(db.prepare('SELECT count(*) AS n FROM sessions').get().n, 1);
 });
 
 test('same-origin checks, malformed and oversized bodies, unknown API and private file isolation', async (t) => {
@@ -228,19 +222,20 @@ test('same-origin checks, malformed and oversized bodies, unknown API and privat
   const player = await f.register();
   assert.equal(
     (
-      await f.request('/api/login', {
-        data: { username: 'staff', password: secret },
+      await f.request('/api/logout', {
+        data: {},
         headers: { Origin: 'https://evil.example' },
       })
     ).status,
     403,
   );
   assert.equal(
-    (await f.request('/api/login', { data: {}, headers: { 'Content-Type': 'text/plain' } })).status,
+    (await f.request('/api/logout', { data: {}, headers: { 'Content-Type': 'text/plain' } }))
+      .status,
     415,
   );
   assert.equal(
-    (await f.request('/api/login', { raw: '{', headers: { 'Content-Type': 'application/json' } }))
+    (await f.request('/api/logout', { raw: '{', headers: { 'Content-Type': 'application/json' } }))
       .status,
     400,
   );
@@ -252,11 +247,7 @@ test('same-origin checks, malformed and oversized bodies, unknown API and privat
   assert.equal((await f.request('/.env')).status, 404);
   f.options.origin = 'https://game.example';
   await f.restart();
-  const secure = await f.request('/api/login', {
-    data: { username: 'staff', password: secret },
-    headers: { Origin: f.options.origin },
-  });
-  assert.equal(secure.status, 200);
+  const secure = await f.register('secure001');
   assert.match(secure.headers.get('set-cookie'), /; Secure/);
   f.options.origin = origin;
   await f.restart();
@@ -496,34 +487,56 @@ test('a v1 database migrates: review-only photos dropped, old receipts kept asid
   assert.equal(me.prizes.meal.redemption, null);
 });
 
-test('expired sessions are rejected and staff password rotation revokes old sessions', async (t) => {
+test('expired sessions are rejected; the admin alone manages staff, and changes apply at once', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
-  const staff = await f.staff();
   const db = new DatabaseSync(f.options.database);
   t.after(() => db.close());
   db.prepare('UPDATE sessions SET expires_at=0 WHERE user_id=?').run(player.data.user.id);
   assert.equal((await f.request('/api/me', { cookie: player.cookie })).status, 401);
-  f.options.staffPassword = 'rotated-staff-password-42';
-  await f.restart();
-  assert.equal((await f.request('/api/me', { cookie: staff })).status, 401);
+
+  const admin = await f.register('admin0001');
+  assert.deepEqual([admin.data.user.role, admin.data.user.admin], ['staff', true]);
+  const member = await f.register('member001');
+  assert.equal(member.data.user.admin, false);
+  const list = (cookie = admin.cookie) => f.request('/api/admin/staff', { cookie });
+  const set = (username, staff, cookie = admin.cookie) =>
+    f.request('/api/admin/staff', { cookie, data: { username, staff } });
+  assert.deepEqual((await list()).data, []);
+  // Nobody else can read or change the list, staff included.
+  assert.equal((await list(member.cookie)).status, 403);
+  assert.equal((await set('member001', true, member.cookie)).status, 403);
+  assert.equal((await set('nobody123', true)).status, 404);
+  assert.equal((await set('admin0001', false)).status, 400);
+  assert.deepEqual((await set('MEMBER001', true)).data, [
+    { username: 'member001', nickname: 'member001' },
+  ]);
+  assert.equal((await f.request('/api/staff/redemptions', { cookie: member.cookie })).status, 200);
+  assert.equal((await list(member.cookie)).status, 403);
   assert.equal(
-    (
-      await f.request('/api/login', {
-        data: { username: 'staff', password: f.options.staffPassword },
-      })
-    ).status,
-    200,
+    (await f.request('/api/resolve', { cookie: member.cookie, data: { key: 'x' } })).status,
+    403,
   );
+  assert.deepEqual((await set('member001', false)).data, []);
+  assert.equal((await f.request('/api/staff/redemptions', { cookie: member.cookie })).status, 403);
+  assert.equal((await f.request('/api/staff/redemptions', { cookie: admin.cookie })).status, 200);
+
+  // Old password accounts can no longer sign in: their sessions end on restart.
+  db.prepare(
+    "INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES ('old','old-staff','salt:hash','staff','OLDCODE','2026-01-01')",
+  ).run();
+  db.prepare("INSERT INTO sessions VALUES ('h','old',?)").run(Date.now() + 60000);
+  await f.restart();
+  assert.equal(db.prepare("SELECT count(*) AS n FROM sessions WHERE user_id='old'").get().n, 0);
+  assert.deepEqual((await list()).data, []);
 });
 
 test('behind a trusted proxy each client gets its own login allowance', async (t) => {
   const f = await fixture(t);
   let n = 0;
-  // A fresh username each time, so only the per-address limit is in play.
   const attempt = (address) =>
-    f.request('/api/login', {
-      data: { username: `user-${n++}`, password: secret },
+    f.request(`/api/auth/google?n=${n++}`, {
+      method: 'GET',
       headers: { 'X-Forwarded-For': `203.0.113.9, 198.51.100.${address}` },
     });
   // Without trust, the header is ignored: every request counts against one address.
@@ -531,9 +544,9 @@ test('behind a trusted proxy each client gets its own login allowance', async (t
   assert.equal((await attempt(250)).status, 429);
   f.options.trustProxy = true;
   await f.restart();
-  for (let i = 0; i < 300; i++) assert.equal((await attempt(1)).status, 401);
+  for (let i = 0; i < 300; i++) assert.equal((await attempt(1)).status, 303);
   assert.equal((await attempt(1)).status, 429);
-  assert.equal((await attempt(2)).status, 401);
+  assert.equal((await attempt(2)).status, 303);
 });
 
 test('unpicked photos expire after the retention period; picked ones stay', async (t) => {
@@ -583,19 +596,14 @@ test('a malformed path is a 404, not a server error', async (t) => {
   assert.equal((await f.request('/%E0%A4')).status, 404);
 });
 
-test('rate limits repeated login attempts and fails closed on unsafe deployment secrets', async (t) => {
+test('rate limits repeated sign-in starts and fails closed on unsafe deployment settings', async (t) => {
   const f = await fixture(t);
-  for (let i = 0; i < 15; i++)
-    assert.equal(
-      (await f.request('/api/login', { data: { username: 'unknown-user', password: secret } }))
-        .status,
-      401,
-    );
-  const blocked = await f.request('/api/login', {
-    data: { username: 'unknown-user', password: secret },
-  });
+  for (let i = 0; i < 300; i++)
+    assert.equal((await f.request('/api/auth/google', { method: 'GET' })).status, 303);
+  const blocked = await f.request('/api/auth/google', { method: 'GET' });
   assert.equal(blocked.status, 429);
   assert.equal(blocked.headers.get('retry-after'), '60');
+  await assert.rejects(createApp({ ...f.options, adminUsername: undefined }));
   await assert.rejects(createApp({ ...f.options, origin: 'http://public.example' }), /HTTPS/);
   await assert.rejects(
     createApp({ ...f.options, stampKeys: { ...stampKeys, taichi: 'GATE-26' } }),
@@ -668,7 +676,7 @@ test('Google sign-in: state and PKCE checked, one player per Google subject, no 
   const login = await f.request('/api/login', {
     data: { username: me.user.username, password: secret },
   });
-  assert.equal(login.status, 401);
+  assert.equal(login.status, 404);
   const db = new DatabaseSync(f.options.database);
   t.after(() => db.close());
   assert.equal(db.prepare('SELECT count(*) AS n FROM identities').get().n, 1);

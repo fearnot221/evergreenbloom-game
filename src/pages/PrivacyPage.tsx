@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <ul className="rows dotted">
           <li>
             <strong>帳號：</strong>
-            你第一次登入時設定的帳號 ID。參加者不設密碼；工作人員帳號的密碼經雜湊處理，不保存明碼。
+            你第一次登入時設定的帳號 ID。所有帳號都用 Google 登入，不設密碼。
           </li>
           <li>
             <strong>Google 登入：</strong>

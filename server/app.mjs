@@ -1,19 +1,11 @@
-import {
-  createHash,
-  randomBytes,
-  randomUUID,
-  scrypt as scryptCallback,
-  timingSafeEqual,
-} from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { promisify } from 'node:util';
 import { prizes, prizeTiers, stampSpots } from '../src/data/stamps.ts';
 
-const scrypt = promisify(scryptCallback);
 const sha = (value) => createHash('sha256').update(value).digest('hex');
 const token = () => randomBytes(32).toString('base64url');
 const date = () => new Date().toISOString();
@@ -69,22 +61,6 @@ function nickname(value) {
 /** A Google sign-in keeps its random placeholder name until the player picks one. */
 const GOOGLE_PLACEHOLDER = /^g-[0-9a-f]{10}$/;
 const needsSetup = (user) => user.password_hash === '!' && GOOGLE_PLACEHOLDER.test(user.username);
-function password(value) {
-  if (typeof value !== 'string' || value.length < 12 || value.length > 128)
-    fail(400, '密碼須為 12 至 128 個字元。');
-  return value;
-}
-async function passwordHash(value) {
-  const salt = randomBytes(16).toString('hex');
-  return `${salt}:${Buffer.from(await scrypt(value, salt, 64)).toString('hex')}`;
-}
-async function passwordMatches(value, hash) {
-  const [salt, expected] = hash.split(':');
-  // Google-only accounts have no password ('!'), so password login never matches.
-  if (!expected) return false;
-  const actual = Buffer.from(await scrypt(value, salt, 64));
-  return timingSafeEqual(actual, Buffer.from(expected, 'hex'));
-}
 function imageType(bytes) {
   if (
     bytes.length >= 12 &&
@@ -134,8 +110,8 @@ async function jsonBody(req) {
 export async function createApp({
   database,
   origin,
-  staffUsername,
-  staffPassword,
+  // The Google account that picked this ID administers the staff list.
+  adminUsername,
   stampKeys,
   staticDir = 'dist',
   // Behind a reverse proxy every request comes from the proxy; the client's address is
@@ -156,8 +132,7 @@ export async function createApp({
       !['localhost', '127.0.0.1', '[::1]'].includes(publicOrigin.hostname))
   )
     throw new Error('APP_ORIGIN must be an HTTPS origin, or HTTP localhost for development');
-  const staffName = username(staffUsername);
-  password(staffPassword);
+  const adminName = username(adminUsername);
   const keys = Object.values(stampKeys ?? {});
   if (
     keys.length !== PUBLIC_SPOTS.size ||
@@ -217,27 +192,12 @@ export async function createApp({
       throw error;
     }
   };
-  const existingStaff = db.prepare('SELECT * FROM users WHERE username=?').get(staffName);
-  if (existingStaff && existingStaff.role !== 'staff')
-    throw new Error('STAFF_USERNAME belongs to a player; choose a different staff account');
-  if (!existingStaff) {
-    db.prepare(
-      'INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,?,?,?,?)',
-    ).run(
-      randomUUID(),
-      staffName,
-      await passwordHash(staffPassword),
-      'staff',
-      randomBytes(12).toString('hex').toUpperCase(),
-      date(),
-    );
-  } else if (!(await passwordMatches(staffPassword, existingStaff.password_hash))) {
-    const hash = await passwordHash(staffPassword);
-    transaction(() => {
-      db.prepare('UPDATE users SET password_hash=? WHERE id=?').run(hash, existingStaff.id);
-      db.prepare('DELETE FROM sessions WHERE user_id=?').run(existingStaff.id);
-    });
-  }
+  // Password sign-in is gone: sessions of old password accounts end now.
+  db.prepare(
+    "DELETE FROM sessions WHERE user_id IN (SELECT id FROM users WHERE password_hash<>'!')",
+  ).run();
+  const isAdmin = (user) => user.username === adminName && user.password_hash === '!';
+  const roleOf = (user) => (isAdmin(user) ? 'staff' : user.role);
   const expirePhotos = () => {
     if (photoRetentionDays > 0)
       db.prepare('DELETE FROM photos WHERE picked_at IS NULL AND submitted_at<?').run(
@@ -247,7 +207,6 @@ export async function createApp({
   expirePhotos();
   const expiry = setInterval(expirePhotos, 60 * 60 * 1000);
   expiry.unref();
-  const dummyHash = await passwordHash(token());
   const root = path.resolve(staticDir);
   const buckets = new Map();
   const limited = (key, limit) => {
@@ -289,7 +248,7 @@ export async function createApp({
   };
   const staffFor = (req) => {
     const user = userFor(req);
-    if (user.role !== 'staff') fail(403, '此功能只開放工作人員使用。');
+    if (roleOf(user) !== 'staff') fail(403, '此功能只開放工作人員使用。');
     return user;
   };
   const issueSession = (res, id) => {
@@ -304,7 +263,7 @@ export async function createApp({
   };
   const playerFor = (req) => {
     const user = userFor(req);
-    if (user.role !== 'player') fail(403, '工作人員帳號不參加集章兌獎。');
+    if (roleOf(user) !== 'player') fail(403, '工作人員帳號不參加集章兌獎。');
     if (needsSetup(user)) fail(403, '請先設定帳號 ID 與暱稱。');
     return user;
   };
@@ -343,7 +302,8 @@ export async function createApp({
         id: user.id,
         username: user.username,
         nickname: user.nickname,
-        role: user.role,
+        role: roleOf(user),
+        admin: isAdmin(user),
         setup: needsSetup(user),
       },
       stamps: Object.fromEntries(
@@ -355,7 +315,7 @@ export async function createApp({
       ),
       // Shown once there is anything to collect: a prize tier, or a picked photo.
       redeemCode:
-        user.role === 'player' &&
+        roleOf(user) === 'player' &&
         (count >= Math.min(...prizeTiers.map((t) => prizes[t].need)) ||
           pickedSpots(user.id).length > 0)
           ? user.redeem_code
@@ -518,19 +478,6 @@ export async function createApp({
       res.setHeader('Set-Cookie', [res.getHeader('Set-Cookie'), oauthCookie('', 0)]);
       return redirect(res, next);
     }
-    if (url.pathname === '/api/login' && req.method === 'POST') {
-      limited(`auth:${ip}`, 300);
-      const input = await jsonBody(req);
-      const name = username(input.username);
-      const secret = password(input.password);
-      limited(`login:${sha(name)}`, 15);
-      const user = db.prepare('SELECT * FROM users WHERE username=?').get(name);
-      const matches = await passwordMatches(secret, user?.password_hash ?? dummyHash);
-      // Players sign in with Google only; passwords are for staff.
-      if (!user || !matches || user.role !== 'staff') fail(401, '帳號或密碼錯誤。');
-      issueSession(res, user.id);
-      return send(res, 200, view(user));
-    }
     if (url.pathname === '/api/logout' && req.method === 'POST') {
       await jsonBody(req);
       db.prepare('DELETE FROM sessions WHERE token_hash=?').run(sessionToken(req));
@@ -614,6 +561,31 @@ export async function createApp({
         writeStamp(user.id, spot);
       });
       return send(res, 200, view(user));
+    }
+    if (url.pathname === '/api/admin/staff') {
+      const admin = userFor(req);
+      if (!isAdmin(admin)) fail(403, '此功能只開放系統管理員使用。');
+      const list = () =>
+        db
+          .prepare(
+            "SELECT username,nickname FROM users WHERE role='staff' AND password_hash='!' ORDER BY username",
+          )
+          .all();
+      if (req.method === 'GET') return send(res, 200, list());
+      if (req.method !== 'POST') fail(405, '不支援此操作。');
+      limited(`admin:${admin.id}`, 60);
+      const input = await jsonBody(req);
+      const name = username(input.username);
+      const user = db.prepare('SELECT * FROM users WHERE username=?').get(name);
+      if (!user || user.password_hash !== '!' || needsSetup(user))
+        fail(404, '找不到這個帳號 ID，請對方先用 Google 登入並設定 ID。');
+      if (isAdmin(user)) fail(400, '系統管理員本身就有工作人員權限。');
+      // Roles are read from the database on every request, so this applies at once.
+      db.prepare('UPDATE users SET role=? WHERE id=?').run(
+        input.staff ? 'staff' : 'player',
+        user.id,
+      );
+      return send(res, 200, list());
     }
     if (url.pathname.startsWith('/api/staff/')) {
       const staff = staffFor(req);

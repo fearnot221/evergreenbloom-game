@@ -3,6 +3,8 @@ import { Page, useDocumentTitle } from '../components/page';
 import { type PrizeTier, prizes, prizeTiers, stampSpots } from '../data/stamps';
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type PrizeState, savedTime, useAccount } from './api';
+import { ProfileSetup } from './ProfileSetup';
+import { StaffAdmin } from './StaffAdmin';
 import '../styles/pages.css';
 import './game.css';
 
@@ -158,8 +160,9 @@ export default function StaffPage() {
       <p className="status" role="status">
         {account.loading ? '正在確認帳號…' : busy ? '處理中…' : notice}
       </p>
-      {!account.data && !account.loading && <AuthForm staff onSuccess={account.setData} />}
-      {account.data && (
+      {!account.data && !account.loading && <AuthForm />}
+      {account.data?.user.setup && <ProfileSetup onSaved={account.setData} />}
+      {account.data && !account.data.user.setup && (
         <>
           <div className="actions account-bar">
             <span className="account-name">目前帳號：{account.data.user.username}</span>
@@ -177,7 +180,7 @@ export default function StaffPage() {
             </button>
           </div>
           {role !== 'staff' ? (
-            <p>此帳號沒有工作人員權限，請登出後使用工作人員帳號登入。</p>
+            <p>此帳號沒有工作人員權限，請系統管理員把你的帳號 ID 加入工作人員名單。</p>
           ) : (
             <>
               <section aria-labelledby="redeem-title">
@@ -273,6 +276,7 @@ export default function StaffPage() {
                   </div>
                 )}
               </section>
+              {account.data.user.admin && <StaffAdmin />}
               <Gallery />
               <section aria-labelledby="records-title">
                 <div className="book-head">

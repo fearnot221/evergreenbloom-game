@@ -11,6 +11,8 @@ export type GameState = {
     username: string;
     nickname: string | null;
     role: 'player' | 'staff';
+    /** The system admin, who manages the staff list. */
+    admin: boolean;
     /** A Google sign-in that has not picked its account ID and nickname yet. */
     setup: boolean;
   };

@@ -2,6 +2,7 @@ import { renderToString } from 'react-dom/server';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { describe, expect, it } from 'vitest';
 import GamePage from '../src/game/GamePage';
+import { showerPetals } from '../src/game/StampReveal';
 import PlayPage from '../src/pages/PlayPage';
 
 function render(url: string) {
@@ -40,5 +41,9 @@ describe('game app', () => {
     expect(render('/play?spot=zhongda-lake&k=lake-26')).toContain(
       'href="/?spot=zhongda-lake&amp;k=lake-26"',
     );
+  });
+  it('gives every sakura-shower petal a valid fall time', () => {
+    // An invalid duration falls back to 0s: the petals land at once and nothing shows.
+    for (const petal of showerPetals) expect(petal.animationDuration).toMatch(/^\d+\.\d{2}s$/);
   });
 });

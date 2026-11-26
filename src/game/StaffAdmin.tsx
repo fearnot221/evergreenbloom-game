@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from './api';
 
-type Member = { username: string; nickname: string | null };
+type Member = { username: string; nickname: string | null; judge: boolean };
 
 /** The system admin adds or removes staff by account ID. */
 export function StaffAdmin() {
@@ -14,12 +14,12 @@ export function StaffAdmin() {
       .then(setMembers)
       .catch((problem) => setError(problem.message));
   }, []);
-  const change = async (username: string, staff: boolean) => {
+  const change = async (username: string, update: { staff: boolean } | { judge: boolean }) => {
     setBusy(true);
     setError('');
     try {
-      setMembers(await api<Member[]>('/admin/staff', { username, staff }));
-      if (staff) setId('');
+      setMembers(await api<Member[]>('/admin/staff', { username, ...update }));
+      if ('staff' in update && update.staff) setId('');
     } catch (problem) {
       setError((problem as Error).message);
     } finally {
@@ -31,14 +31,14 @@ export function StaffAdmin() {
       <h2 id="staff-admin-title">工作人員名單</h2>
       <p className="note">
         對方先用 Google 登入並設定帳號 ID，再把 ID 加進名單就有工作人員權限，移除後立即失效。
-        工作人員帳號不參加集章兌獎。
+        工作人員帳號不參加集章兌獎。設為評審的工作人員才能看照片、選佳作。
       </p>
       <form
         className="code-entry"
         aria-busy={busy}
         onSubmit={(event) => {
           event.preventDefault();
-          void change(id.trim(), true);
+          void change(id.trim(), { staff: true });
         }}
       >
         <label htmlFor="staff-id">帳號 ID</label>
@@ -67,15 +67,27 @@ export function StaffAdmin() {
           <li key={member.username} className="book-head">
             <span>
               {member.nickname ? `${member.nickname}（${member.username}）` : member.username}
+              {member.judge && '・評審'}
             </span>
-            <button
-              className="button button-ghost"
-              type="button"
-              disabled={busy}
-              onClick={() => void change(member.username, false)}
-            >
-              移除
-            </button>
+            <span className="actions">
+              <button
+                className="button button-ghost"
+                type="button"
+                disabled={busy}
+                aria-pressed={member.judge}
+                onClick={() => void change(member.username, { judge: !member.judge })}
+              >
+                {member.judge ? '取消評審' : '設為評審'}
+              </button>
+              <button
+                className="button button-ghost"
+                type="button"
+                disabled={busy}
+                onClick={() => void change(member.username, { staff: false })}
+              >
+                移除
+              </button>
+            </span>
           </li>
         ))}
       </ul>

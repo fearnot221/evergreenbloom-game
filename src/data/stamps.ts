@@ -17,8 +17,8 @@ export interface StampSpot {
   prompt: string;
   /** quiz only: the choices, in order (A, B, C). */
   options?: string[];
-  /** fill only: the passage to read first. Hidden once the answer box opens. */
-  passage?: string;
+  /** fill only: the passage to read first, by paragraph. Hidden once the answer box opens. */
+  passage?: string[];
   /** Shown after the task, before the stamp: the spot's knowledge. */
   intro: string;
   at: [number, number];
@@ -71,8 +71,11 @@ export const stampSpots: StampSpot[] = [
     no: 4,
     name: '中正圖書館',
     method: 'fill',
-    passage:
-      '中正圖書館，中大的文化心臟。坐落於百花川畔，由知名建築師陳其寬校友設計，這座圖書館不只是知識的殿堂，更是藝術與文化的寶庫。館內珍藏豐富戲曲文物，並設有藝文中心，讓學術、人文、美感在此交融；在這裡，閱讀不只是學習，更是一場文化的傳承。隨著總圖書館落成，中正圖書館現已轉型為多功能空間，內部進駐多個重要單位與設施，例如學務處、服務學習中心等。',
+    passage: [
+      '中正圖書館，中大的文化心臟。坐落於百花川畔，由知名建築師陳其寬校友設計，這座圖書館不只是知識的殿堂，更是藝術與文化的寶庫。',
+      '館內珍藏豐富戲曲文物，並設有藝文中心，讓學術、人文、美感在此交融；在這裡，閱讀不只是學習，更是一場文化的傳承。',
+      '隨著總圖書館落成，中正圖書館現已轉型為多功能空間，內部進駐多個重要單位與設施，例如學務處、服務學習中心等。',
+    ],
     prompt: '中正圖書館是由哪位校友規劃設計？',
     intro:
       '綠白相間的中正圖書館，被稱為「舊圖」，由陳其寬校友規劃設計，依據井田棋盤的概念，位居校園核心，象徵知識的泉源。內有天井花園，稱「樂讀園」。',
@@ -95,8 +98,11 @@ export const stampSpots: StampSpot[] = [
     no: 6,
     name: '大禮堂',
     method: 'fill',
-    passage:
-      '中央大學以「松」立校，因此新建的大禮堂以「松果」作為設計靈感，象徵孕育智慧的種籽。大禮堂外觀呈橢圓形，屋頂採用三種不同深淺的木質色鋁板，模擬松果鱗片的層次。建築透過玻璃帷幕引入自然陽光，讓人們能欣賞周圍美麗的松樹林。大禮堂內部則運用溫潤的木紋牆面與燈光設計，展現松果的立體感。',
+    passage: [
+      '中央大學以「松」立校，因此新建的大禮堂以「松果」作為設計靈感，象徵孕育智慧的種籽。',
+      '大禮堂外觀呈橢圓形，屋頂採用三種不同深淺的木質色鋁板，模擬松果鱗片的層次。',
+      '建築透過玻璃帷幕引入自然陽光，讓人們能欣賞周圍美麗的松樹林。大禮堂內部則運用溫潤的木紋牆面與燈光設計，展現松果的立體感。',
+    ],
     prompt: '中央大學的大禮堂是以什麼植物的果實作為設計靈感？',
     intro:
       '教學研究綜合大樓之大禮堂，外型採獨特的「松果」造型，運用櫛比鱗次的空間層次，表達深厚的知識內涵。內可容納 1,500 個座位，氣勢磅礡。',

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { fitLine } from '../components/fit';
 import { display } from '../data/display-copy';
 import { methodLabels, type StampSpot } from '../data/stamps';
 
@@ -72,7 +73,9 @@ function Quiz({ spot, busy, submit, error }: Props) {
       }}
     >
       <fieldset disabled={busy}>
-        <legend className="task-prompt">{spot.prompt}</legend>
+        <legend className="task-prompt fit" style={fitLine(spot.prompt)}>
+          {spot.prompt}
+        </legend>
         {spot.options?.map((option, index) => (
           <label key={option} className="quiz-option">
             <input
@@ -82,7 +85,9 @@ function Quiz({ spot, busy, submit, error }: Props) {
               onChange={() => setAnswer(index)}
             />
             <span className="latin option-letter">{'ABC'[index]}</span>
-            {option}
+            <span className="fit" style={fitLine(option)}>
+              {option}
+            </span>
           </label>
         ))}
       </fieldset>
@@ -105,7 +110,11 @@ function Fill({ spot, busy, submit, error }: Props) {
     return (
       <div className="task-form">
         <p className="task-step">先讀完說明，答題時不會再顯示</p>
-        <p className="passage">{spot.passage}</p>
+        <div className="passage">
+          {spot.passage?.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
         <button type="button" className="button" onClick={() => setStep('answer')}>
           我讀完了，開始作答
         </button>
@@ -119,7 +128,7 @@ function Fill({ spot, busy, submit, error }: Props) {
         if (answer.trim()) void submit(answer.trim());
       }}
     >
-      <label className="task-prompt" htmlFor="fill-answer">
+      <label className="task-prompt fit" htmlFor="fill-answer" style={fitLine(spot.prompt)}>
         {spot.prompt}
       </label>
       <input
@@ -186,7 +195,9 @@ function Photo({ spot, busy, submit, error }: Props) {
         }
       }}
     >
-      <p className="task-prompt">{spot.prompt}</p>
+      <p className="task-prompt fit" style={fitLine(spot.prompt)}>
+        {spot.prompt}
+      </p>
       <label className="button button-ghost photo-pick">
         {preview ? '重拍一張' : '打開相機拍照'}
         <input

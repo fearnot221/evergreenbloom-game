@@ -13,6 +13,8 @@ export type GameState = {
     role: 'player' | 'staff';
     /** The system admin, who manages the staff list. */
     admin: boolean;
+    /** The admin, or staff the admin marked as judges: they pick the best photos. */
+    judge: boolean;
     /** A Google sign-in that has not picked its account ID and nickname yet. */
     setup: boolean;
   };
@@ -21,7 +23,7 @@ export type GameState = {
   redeemCode: string | null;
   prizes: Record<PrizeTier, PrizeState>;
   /** This player's uploaded photos, and whether the organisers picked each one. */
-  photos: Record<string, { picked: boolean }>;
+  photos: Record<string, { picked: boolean; redeemed_at: string | null }>;
 };
 export class ApiError extends Error {
   constructor(
@@ -111,6 +113,31 @@ async function logout() {
 
 const setData = (state: GameState | null) => set({ data: state, error: '' });
 
+/** Re-read the record without the loading state, so nothing on screen flickers. */
+export const quietRefresh = () =>
+  api<GameState>('/me')
+    .then(setData)
+    .catch(() => {});
+
+/**
+ * Prize stock changes as others redeem: while `on`, re-read it quietly every 30 s with the
+ * page on screen, and at once when the tab comes back.
+ */
+export function useLiveStock(on: boolean) {
+  useEffect(() => {
+    if (!on) return;
+    const poll = () => {
+      if (document.visibilityState === 'visible') void quietRefresh();
+    };
+    const timer = window.setInterval(poll, 30_000);
+    document.addEventListener('visibilitychange', poll);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', poll);
+    };
+  }, [on]);
+}
+
 export function useAccount() {
   const state = useSyncExternalStore(
     (listener) => {
@@ -130,3 +157,13 @@ export function useAccount() {
 
 export const savedTime = (value: string) =>
   new Date(value).toLocaleString('zh-TW', { timeZone: 'Asia/Taipei', hour12: false });
+/** Month, day and minute in Taipei time ("11/27 14:05"), short enough for a prize card. */
+export const shortTime = (value: string) =>
+  new Date(value).toLocaleString('zh-TW', {
+    timeZone: 'Asia/Taipei',
+    hour12: false,
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });

@@ -181,6 +181,14 @@ export async function createApp({
       'PRAGMA user_version=3',
     ].join(';'),
   );
+  // 2026-11-27: only staff the admin marks as judges pick (and see) the best photos.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('users') WHERE name='judge'").get())
+    db.exec('ALTER TABLE users ADD COLUMN judge INTEGER NOT NULL DEFAULT 0');
+  // 2026-11-27: a picked photo's market voucher is handed out once, recorded on the photo.
+  if (!db.prepare("SELECT 1 FROM pragma_table_info('photos') WHERE name='redeemed_at'").get())
+    db.exec(
+      'ALTER TABLE photos ADD COLUMN redeemed_at TEXT; ALTER TABLE photos ADD COLUMN redeemed_by TEXT',
+    );
   const transaction = (fn) => {
     db.exec('BEGIN IMMEDIATE');
     try {
@@ -251,6 +259,7 @@ export async function createApp({
     if (roleOf(user) !== 'staff') fail(403, '此功能只開放工作人員使用。');
     return user;
   };
+  const isJudge = (user) => isAdmin(user) || (user.role === 'staff' && user.judge === 1);
   const issueSession = (res, id) => {
     const raw = token();
     db.prepare('DELETE FROM sessions WHERE expires_at<=?').run(Date.now());
@@ -290,11 +299,13 @@ export async function createApp({
         },
       ]),
     );
+  /** This player's picked photos, each with its voucher handout (null until redeemed). */
   const pickedSpots = (id) =>
     db
-      .prepare('SELECT spot_id FROM photos WHERE user_id=? AND picked_at IS NOT NULL')
-      .all(id)
-      .map((row) => row.spot_id);
+      .prepare(
+        'SELECT spot_id AS spot,redeemed_at,redeemed_by AS reviewer FROM photos WHERE user_id=? AND picked_at IS NOT NULL',
+      )
+      .all(id);
   const view = (user) => {
     const count = stampCount(user.id);
     return {
@@ -304,6 +315,7 @@ export async function createApp({
         nickname: user.nickname,
         role: roleOf(user),
         admin: isAdmin(user),
+        judge: isJudge(user),
         setup: needsSetup(user),
       },
       stamps: Object.fromEntries(
@@ -313,20 +325,18 @@ export async function createApp({
           .filter((row) => PUBLIC_SPOTS.has(row.spot_id))
           .map((row) => [row.spot_id, row.earned_at]),
       ),
-      // Shown once there is anything to collect: a prize tier, or a picked photo.
-      redeemCode:
-        roleOf(user) === 'player' &&
-        (count >= Math.min(...prizeTiers.map((t) => prizes[t].need)) ||
-          pickedSpots(user.id).length > 0)
-          ? user.redeem_code
-          : null,
+      // Every player's own code, shown from the start; staff accounts have none.
+      redeemCode: roleOf(user) === 'player' ? user.redeem_code : null,
       prizes: prizeView(user, count),
       // Which of this player's photos the organisers picked (a market meal voucher each).
       photos: Object.fromEntries(
         db
-          .prepare('SELECT spot_id,picked_at FROM photos WHERE user_id=?')
+          .prepare('SELECT spot_id,picked_at,redeemed_at FROM photos WHERE user_id=?')
           .all(user.id)
-          .map((row) => [row.spot_id, { picked: row.picked_at !== null }]),
+          .map((row) => [
+            row.spot_id,
+            { picked: row.picked_at !== null, redeemed_at: row.redeemed_at },
+          ]),
       ),
     };
   };
@@ -549,15 +559,9 @@ export async function createApp({
       transaction(() => {
         if (stamped()) fail(409, '這個章已完成。');
         const now = date();
-        db.prepare('INSERT INTO photos VALUES (?,?,?,?,?,?,?,NULL,NULL)').run(
-          randomUUID(),
-          user.id,
-          spot.id,
-          bytes,
-          mime,
-          now,
-          now,
-        );
+        db.prepare(
+          'INSERT INTO photos (id,user_id,spot_id,image,mime,consent_at,submitted_at) VALUES (?,?,?,?,?,?,?)',
+        ).run(randomUUID(), user.id, spot.id, bytes, mime, now, now);
         writeStamp(user.id, spot);
       });
       return send(res, 200, view(user));
@@ -583,9 +587,10 @@ export async function createApp({
       const list = () =>
         db
           .prepare(
-            "SELECT username,nickname FROM users WHERE role='staff' AND password_hash='!' ORDER BY username",
+            "SELECT username,nickname,judge=1 AS judge FROM users WHERE role='staff' AND password_hash='!' ORDER BY username",
           )
-          .all();
+          .all()
+          .map((row) => ({ ...row, judge: row.judge === 1 }));
       if (req.method === 'GET') return send(res, 200, list());
       if (req.method !== 'POST') fail(405, '不支援此操作。');
       limited(`admin:${admin.id}`, 60);
@@ -596,10 +601,14 @@ export async function createApp({
         fail(404, '找不到這個帳號 ID，請對方先用 Google 登入並設定 ID。');
       if (isAdmin(user)) fail(400, '系統管理員本身就有工作人員權限。');
       // Roles are read from the database on every request, so this applies at once.
-      db.prepare('UPDATE users SET role=? WHERE id=?').run(
-        input.staff ? 'staff' : 'player',
-        user.id,
-      );
+      if (typeof input.judge === 'boolean') {
+        if (user.role !== 'staff') fail(400, '請先把這個帳號加入工作人員名單。');
+        db.prepare('UPDATE users SET judge=? WHERE id=?').run(input.judge ? 1 : 0, user.id);
+      } else
+        db.prepare('UPDATE users SET role=?,judge=0 WHERE id=?').run(
+          input.staff ? 'staff' : 'player',
+          user.id,
+        );
       return send(res, 200, list());
     }
     if (url.pathname.startsWith('/api/staff/')) {
@@ -607,6 +616,9 @@ export async function createApp({
       const photo = url.pathname.match(/^\/api\/staff\/photos\/([a-f0-9-]+)$/);
       // Gallery images load as the staff member scrolls; only actions count to the limit.
       if (!(photo && req.method === 'GET')) limited(`staff:${staff.id}`, 120);
+      // The gallery (list, images, picks) is for judges only; other staff just redeem.
+      if ((photo || url.pathname === '/api/staff/photos') && !isJudge(staff))
+        fail(403, '佳作評選只開放系統管理員指定的評審。');
       if (url.pathname === '/api/staff/photos' && req.method === 'GET') {
         const spot = stampSpots.find((item) => item.id === url.searchParams.get('spot'));
         if (spot?.method !== 'photo') fail(400, '請選擇拍照關卡。');
@@ -635,8 +647,11 @@ export async function createApp({
         const input = await jsonBody(req);
         if (typeof input.picked !== 'boolean') fail(400, '請選擇要選入或取消。');
         transaction(() => {
-          const row = db.prepare('SELECT spot_id,picked_at FROM photos WHERE id=?').get(photo[1]);
+          const row = db
+            .prepare('SELECT spot_id,picked_at,redeemed_at FROM photos WHERE id=?')
+            .get(photo[1]);
           if (!row) fail(404, '找不到這張照片。');
+          if (!input.picked && row.redeemed_at) fail(409, '這張佳作的餐券已發放，不能取消。');
           if (input.picked && row.picked_at === null) {
             const n = db
               .prepare('SELECT count(*) AS n FROM photos WHERE spot_id=? AND picked_at IS NOT NULL')
@@ -707,13 +722,41 @@ export async function createApp({
         });
         return send(res, 201, receipt);
       }
+      if (url.pathname === '/api/staff/redeem-photo' && req.method === 'POST') {
+        const input = await jsonBody(req);
+        if (typeof input.code !== 'string' || !/^[A-F0-9]{24}$/.test(input.code))
+          fail(400, '兌獎碼格式不正確。');
+        if (typeof input.spot !== 'string') fail(400, '請選擇要兌換的佳作。');
+        const receipt = transaction(() => {
+          const user = db
+            .prepare("SELECT * FROM users WHERE redeem_code=? AND role='player'")
+            .get(input.code);
+          if (!user) fail(404, '找不到此兌獎碼。');
+          const row = db
+            .prepare(
+              'SELECT id,redeemed_at FROM photos WHERE user_id=? AND spot_id=? AND picked_at IS NOT NULL',
+            )
+            .get(user.id, input.spot);
+          if (!row) fail(409, '這張照片沒有獲選佳作。');
+          if (row.redeemed_at) fail(409, '這張佳作的餐券已兌換過，不能重複領取。');
+          const record = { spot: input.spot, redeemed_at: date(), reviewer: staff.username };
+          db.prepare('UPDATE photos SET redeemed_at=?,redeemed_by=? WHERE id=?').run(
+            record.redeemed_at,
+            record.reviewer,
+            row.id,
+          );
+          return record;
+        });
+        return send(res, 201, receipt);
+      }
       if (url.pathname === '/api/staff/redemptions' && req.method === 'GET')
         return send(
           res,
           200,
           db
             .prepare(
-              'SELECT redemptions.id,users.username,tier,redeemed_at,reviewer,stamp_count FROM redemptions JOIN users ON users.id=redemptions.user_id ORDER BY redeemed_at DESC LIMIT 100',
+              // Prize tiers and best-photo vouchers in one list; a photo row names its spot.
+              "SELECT redemptions.id,users.username,tier,NULL AS spot,redeemed_at,reviewer,stamp_count FROM redemptions JOIN users ON users.id=redemptions.user_id UNION ALL SELECT photos.id,users.username,'photo',spot_id,redeemed_at,redeemed_by,NULL FROM photos JOIN users ON users.id=photos.user_id WHERE redeemed_at IS NOT NULL ORDER BY redeemed_at DESC LIMIT 100",
             )
             .all(),
         );

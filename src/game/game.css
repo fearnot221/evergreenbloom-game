@@ -20,18 +20,19 @@
 /* The task in hand: a blush ticket with its method seal. */
 .task {
   position: relative;
+  container-type: inline-size;
   display: grid;
   gap: var(--space-3);
-  padding: var(--space-5);
+  /* Narrower sides on phones: the card already sits inside the sheet's own margin. */
+  padding: var(--space-5) clamp(var(--space-4), 5cqi, var(--space-5));
   border: var(--stroke) solid var(--ink);
   border-radius: var(--radius-m);
   background: var(--surface-2);
 }
 
+/* In the flow, top left: .cone.cone sets position: relative, so no offsets here. */
 .task-seal {
-  position: absolute;
-  top: var(--space-4);
-  right: var(--space-4);
+  justify-self: start;
   display: grid;
   place-items: center;
   inline-size: 3.5rem;
@@ -44,13 +45,11 @@
 }
 
 .task-method {
-  padding-inline-end: 4rem;
   color: var(--rose-text);
   font-weight: 800;
 }
 
 .task h2 {
-  padding-inline-end: 4rem;
   font-size: var(--step-3);
 }
 
@@ -71,7 +70,9 @@
 
 .task-prompt {
   padding: 0;
-  font-size: var(--step-1);
+  /* Sized by .fit against the card; questions too long for one line wrap, balanced. */
+  --fit-max: var(--step-1);
+  text-wrap: balance;
   font-weight: 800;
 }
 
@@ -83,15 +84,28 @@
 
 /* The passage to read before answering: set like a printed card. */
 .passage {
-  padding: var(--space-4);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-4) var(--space-4) calc(var(--space-4) + 3px);
+  border-left: 3px solid var(--sakura);
   border-radius: var(--radius-s);
   background: white;
   line-height: 1.9;
 }
 
+/* Justified with plain wrapping, so both edges meet the padding (pretty ends lines early). */
+.passage p {
+  text-align: justify;
+  text-wrap: wrap;
+}
+
 .task-error {
   color: var(--rose-text);
+  /* One line on phones: shrinks with the card (the server's message is 15 characters),
+     and plain wrapping, since iOS Safari's text-wrap: pretty breaks it early. */
+  font-size: min(1rem, 100cqi / 16);
   font-weight: 800;
+  text-wrap: wrap;
 }
 
 .task-error:empty {
@@ -126,6 +140,13 @@
   object-fit: contain;
   border-radius: var(--radius-s);
   background: white;
+}
+
+/* An answer's text fits beside its letter (1.6rem) and gap (0.75rem). */
+.quiz-option {
+  container-type: inline-size;
+  --fit-inset: 2.35rem;
+  --fit-min: 0.6875rem;
 }
 
 /* Answers and consent: whole-row choices that light up star-yellow. */
@@ -473,6 +494,7 @@
 }
 
 .prize {
+  container-type: inline-size;
   display: grid;
   gap: var(--space-3);
 }
@@ -487,6 +509,42 @@
 }
 
 /* Redeem code QR: white quiet zone is part of the SVG. */
+/* 我的兌獎碼: a raised ticket; a dashed tear line parts the QR Code from the code. */
+.redeem-card {
+  container-type: inline-size;
+  justify-self: stretch;
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-m);
+  background: white;
+  box-shadow: 0 4px 0 var(--ink);
+  text-align: center;
+}
+
+.redeem-kicker {
+  color: var(--rose-text);
+  font-weight: 800;
+  letter-spacing: 0.2em;
+}
+
+.sheet .redeem-card .receipt-code {
+  inline-size: 100%;
+  margin-block: var(--space-2) var(--space-1);
+  padding-inline: var(--space-2);
+  /* 24 characters with their tracking (~0.68em each) on one line, whatever the width. */
+  font-size: min(var(--step-2), (100cqi - 1.5rem) / 17);
+}
+
+.redeem-card .redeem-qr {
+  padding-bottom: var(--space-3);
+  border-bottom: 2px dashed var(--line);
+  border-radius: 0;
+  width: min(15rem, 100%);
+}
+
 .redeem-qr {
   display: block;
   width: min(15rem, 100%);
@@ -495,6 +553,38 @@
 }
 
 /* Staff */
+/* 剩餘份數: one tile per prize tier, the count large. */
+.stock-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  inline-size: 100%;
+}
+
+.stock {
+  container-type: inline-size;
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--stroke) solid var(--ink);
+  border-radius: var(--radius-m);
+  background: var(--surface-2);
+}
+
+.stock-name {
+  font-weight: 800;
+}
+
+.stock-left {
+  font-size: var(--step-3);
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.stock.is-out .stock-left {
+  color: var(--rose-text);
+}
+
 .station-code {
   display: grid;
   grid-template-columns: 7rem 1fr;
@@ -519,6 +609,8 @@
 }
 
 .lookup {
+  /* Full width: the prize cards are size containers, so they give it no content width. */
+  justify-self: stretch;
   display: grid;
   gap: var(--space-3);
   justify-items: start;
@@ -554,6 +646,14 @@
   gap: var(--space-3);
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   inline-size: 100%;
+}
+
+.prize-card > div {
+  container-type: inline-size;
+}
+
+.prize-card .note {
+  --fit-max: 0.9375rem;
 }
 
 .prize-card {

@@ -1,12 +1,12 @@
 import type { CSSProperties } from 'react';
-import { prizes, SHOWER_AT, stampSpots } from '../data/stamps';
+import { type PrizeTier, prizes, SHOWER_AT, stampSpots } from '../data/stamps';
 
 const total = stampSpots.length;
-/** The bar's three stops: the sakura shower, then each prize. */
-export const milestones = [
-  { at: SHOWER_AT, label: '撒櫻花' },
-  { at: prizes.meal.need, label: '換餐券' },
-  { at: prizes.merch.need, label: '換週邊' },
+/** The bar's three stops: the sakura shower (unlabelled, a surprise), then each prize. */
+export const milestones: { at: number; label: string; tier?: PrizeTier }[] = [
+  { at: SHOWER_AT, label: '' },
+  { at: prizes.meal.need, label: '換餐券', tier: 'meal' },
+  { at: prizes.merch.need, label: '換週邊', tier: 'merch' },
 ];
 
 /** The milestone just reached when the count went from `before` to `after`, if any. */
@@ -38,7 +38,7 @@ export function Progress({ count }: { count: number }) {
             style={{ '--at': m.at / total } as CSSProperties}
           >
             <span className="progress-stop-at latin">{m.at}</span>
-            <span className="progress-stop-label">{m.label}</span>
+            {m.label && <span className="progress-stop-label">{m.label}</span>}
           </span>
         ))}
       </div>

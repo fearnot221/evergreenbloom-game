@@ -139,6 +139,16 @@ async function fixture(t, extra = {}) {
       data: { username: 'staffer01', staff: true },
     });
     assert.equal(added.status, 200);
+    // A plain staff member redeems but cannot open the best-photo gallery.
+    assert.equal(
+      (await request('/api/staff/photos?spot=tingsong', { cookie: member.cookie })).status,
+      403,
+    );
+    const judge = await request('/api/admin/staff', {
+      cookie: admin.cookie,
+      data: { username: 'staffer01', judge: true },
+    });
+    assert.equal(judge.status, 200);
     return member.cookie;
   };
   const photo = (cookie, spot, raw = png, extra = {}) =>
@@ -333,7 +343,7 @@ test('two prize tiers: 6 stamps for the meal voucher, 10 for merch, once each, e
   assert.equal((await redeem('cake')).status, 400);
   await f.collect(player.cookie, SPOTS.slice(0, 5));
   let me = (await f.request('/api/me', { cookie: player.cookie })).data;
-  assert.equal(me.redeemCode, null);
+  assert.equal(me.redeemCode, code);
   assert.equal((await redeem('meal')).status, 409);
   await f.collect(player.cookie, SPOTS.slice(5, 6));
   me = (await f.request('/api/me', { cookie: player.cookie })).data;
@@ -423,7 +433,7 @@ test('a photo upload with consent earns the stamp at once and is kept; staff pic
   const done = await f.photo(cookie, 'tingsong');
   assert.equal(done.status, 200);
   assert.ok(done.data.stamps.tingsong);
-  assert.deepEqual(done.data.photos, { tingsong: { picked: false } });
+  assert.deepEqual(done.data.photos, { tingsong: { picked: false, redeemed_at: null } });
   assert.equal((await f.photo(cookie, 'tingsong')).status, 409);
 
   // Only staff see the archive; images are served sandboxed and uncached.
@@ -457,14 +467,32 @@ test('a photo upload with consent earns the stamp at once and is kept; staff pic
   const lake = (await f.request('/api/staff/photos?spot=zhongda-lake', { cookie: staff })).data;
   assert.equal((await pick(lake[0].id, true)).status, 200);
   const me = (await f.request('/api/me', { cookie })).data;
-  assert.deepEqual(me.photos['zhongda-lake'], { picked: true });
+  assert.deepEqual(me.photos['zhongda-lake'], { picked: true, redeemed_at: null });
   // A picked photographer gets a redemption code even below 6 stamps.
   assert.ok(me.redeemCode);
   const lookup = await f.request('/api/staff/lookup', {
     cookie: staff,
     data: { code: me.redeemCode },
   });
-  assert.ok(lookup.data.picked.includes('zhongda-lake'));
+  assert.deepEqual(
+    lookup.data.picked.find((item) => item.spot === 'zhongda-lake'),
+    { spot: 'zhongda-lake', redeemed_at: null, reviewer: null },
+  );
+  // Its voucher is handed out once; then the pick is locked and the player sees it.
+  const redeemPhoto = (spot) =>
+    f.request('/api/staff/redeem-photo', { cookie: staff, data: { code: me.redeemCode, spot } });
+  assert.equal((await redeemPhoto('friendship-sakura')).status, 409);
+  assert.equal((await redeemPhoto('zhongda-lake')).status, 201);
+  assert.equal((await redeemPhoto('zhongda-lake')).status, 409);
+  assert.equal((await pick(lake[0].id, false)).status, 409);
+  const after = (await f.request('/api/me', { cookie })).data;
+  assert.equal(after.photos['zhongda-lake'].picked, true);
+  assert.ok(after.photos['zhongda-lake'].redeemed_at);
+  const records = (await f.request('/api/staff/redemptions', { cookie: staff })).data;
+  assert.deepEqual(
+    records.map((r) => [r.tier, r.spot, r.stamp_count]),
+    [['photo', 'zhongda-lake', null]],
+  );
 });
 
 test('a v1 database migrates: review-only photos dropped, old receipts kept aside, old spot ids no longer count', async (t) => {
@@ -512,8 +540,14 @@ test('expired sessions are rejected; the admin alone manages staff, and changes 
   assert.equal((await set('nobody123', true)).status, 404);
   assert.equal((await set('admin0001', false)).status, 400);
   assert.deepEqual((await set('MEMBER001', true)).data, [
-    { username: 'member001', nickname: 'member001' },
+    { username: 'member001', nickname: 'member001', judge: false },
   ]);
+  // Only the admin marks judges; removing someone from staff clears it.
+  const judge = (value, cookie = admin.cookie) =>
+    f.request('/api/admin/staff', { cookie, data: { username: 'member001', judge: value } });
+  assert.equal((await judge(true, member.cookie)).status, 403);
+  assert.equal((await judge(true)).data[0].judge, true);
+  assert.equal((await f.request('/api/me', { cookie: member.cookie })).data.user.judge, true);
   assert.equal((await f.request('/api/staff/redemptions', { cookie: member.cookie })).status, 200);
   assert.equal((await list(member.cookie)).status, 403);
   // Station codes are for the admin only, not for staff.
@@ -531,6 +565,7 @@ test('expired sessions are rejected; the admin alone manages staff, and changes 
   );
   assert.deepEqual((await set('member001', false)).data, []);
   assert.equal((await f.request('/api/staff/redemptions', { cookie: member.cookie })).status, 403);
+  assert.equal((await f.request('/api/me', { cookie: member.cookie })).data.user.judge, false);
   assert.equal((await f.request('/api/staff/redemptions', { cookie: admin.cookie })).status, 200);
 
   // Old password accounts can no longer sign in: their sessions end on restart.

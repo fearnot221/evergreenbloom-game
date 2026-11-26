@@ -339,7 +339,8 @@ input[type="checkbox"] {
   font-weight: 800;
 }
 
-/* 集滿 3 個章: after 收進集章冊, petals fall across the whole page, over the tab bar. */
+/* 集滿 3 個章: after 收進集章冊, petals are thrown up from both bottom corners (撒花) and
+   flutter down across the whole page, over the tab bar. Values per petal: StampReveal.tsx. */
 .sakura-shower {
   position: fixed;
   inset: 0;
@@ -350,15 +351,40 @@ input[type="checkbox"] {
 
 .sakura-shower .petal {
   position: absolute;
-  top: -3rem;
+  bottom: -2rem;
   inline-size: 1.4rem;
-  animation: shower-fall linear both;
+  margin-inline-start: -0.7rem;
+  animation:
+    shower-throw 0.9s cubic-bezier(0.15, 0.85, 0.35, 1) var(--delay) both,
+    shower-flutter var(--fall) cubic-bezier(0.45, 0, 0.8, 0.6) calc(var(--delay) + 0.9s) forwards;
 }
 
-@keyframes shower-fall {
+/* Up fast and slowing to the top of the arc… */
+@keyframes shower-throw {
+  from {
+    transform: translate(0, 0) scale(0.4) rotate(0);
+  }
   to {
-    translate: 4rem 110vh;
-    rotate: 540deg;
+    transform: translate(var(--x), var(--peak)) scale(var(--s)) rotate(var(--r));
+  }
+}
+
+/* …then drifting down, swaying, past the bottom edge. */
+@keyframes shower-flutter {
+  from {
+    transform: translate(var(--x), var(--peak)) scale(var(--s)) rotate(var(--r));
+  }
+  35% {
+    transform: translate(calc(var(--x) + var(--drift) * 0.6), calc(var(--peak) * 0.62))
+      scale(var(--s)) rotate(calc(var(--r) + 120deg));
+  }
+  70% {
+    transform: translate(calc(var(--x) - var(--drift) * 0.3), calc(var(--peak) * 0.25))
+      scale(var(--s)) rotate(calc(var(--r) + 220deg));
+  }
+  to {
+    transform: translate(calc(var(--x) + var(--drift)), 3rem) scale(var(--s))
+      rotate(calc(var(--r) + 320deg));
   }
 }
 

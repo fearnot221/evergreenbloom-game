@@ -7,8 +7,7 @@ mkdirSync(path.dirname(database), { recursive: true });
 const app = await createApp({
   database,
   origin: process.env.APP_ORIGIN || 'http://localhost:8080',
-  staffUsername: process.env.STAFF_USERNAME,
-  staffPassword: process.env.STAFF_PASSWORD,
+  adminUsername: process.env.ADMIN_USERNAME || 'fearnot221',
   stampKeys: JSON.parse(process.env.STAMP_KEYS || '{}'),
   trustProxy: process.env.TRUST_PROXY === '1',
   photoRetentionDays: Number(process.env.PHOTO_RETENTION_DAYS) || 0,

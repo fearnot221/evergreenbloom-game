@@ -1,8 +1,19 @@
 # Festival Web App — architecture and implementation status
 
+## Google-only accounts and admin-managed staff · 2026-11-26
+
+All password sign-in is gone: no POST /api/register or /api/login, no STAFF_USERNAME /
+STAFF_PASSWORD; startup revokes sessions of old password rows. ADMIN_USERNAME (default
+`fearnot221`) names the Google account ID that is system admin: its effective role is
+staff (`roleOf`), `user.admin` is true, and it manages the staff list on /staff
+(`StaffAdmin`; GET/POST /api/admin/staff `{username, staff}`), which sets `users.role`.
+Only set-up Google accounts can be added; roles are read per request, so changes apply
+at once. An unclaimed admin ID goes to whoever sets it first, so the admin should claim
+it right after deploying.
+
 ## Google sign-in · 2026-11-26
 
-Optional, on when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set. `server/app.mjs`:
+The only sign-in, on when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set. `server/app.mjs`:
 GET /api/auth/providers (`{google}`), GET /api/auth/google (state + PKCE in a 10-minute
 HttpOnly cookie scoped to /api/auth/google, `next` limited to /, /game or /staff),
 GET /api/auth/google/callback (code exchange with Google's token endpoint, ID-token
@@ -92,7 +103,8 @@ Offline task/prize submission never succeeds optimistically. The former device-l
 stamp store is ignored; accounts survive browser resets by logging in again.
 No per-natural-person deduplication, self-service password recovery, inventory or
 external SSO is claimed. See README.md for API/deployment/security boundaries.
-API inventory: POST /api/login (staff only), /api/logout; GET /api/me;
+API inventory (2026-11-26: plus Google auth, /api/profile, /api/nickname,
+/api/admin/staff; no password routes): POST /api/logout; GET /api/me;
 POST /api/resolve; POST /api/claims/:spot (QR/quiz); POST /api/claims/:spot/photo
 (raw bounded image with X-Stamp-Key and X-Photo-Consent); staff-only GET /api/staff/photos,
 GET/POST /api/staff/photos/:id, POST /api/staff/lookup, POST /api/staff/redeem,

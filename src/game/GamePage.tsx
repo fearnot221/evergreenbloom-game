@@ -103,7 +103,7 @@ export default function GamePage() {
               你掃到了集章點「{spot.name}」。登入或建立帳號後，就能開始這裡的任務。
             </p>
           )}
-          <AuthForm onSuccess={account.setData} />
+          <AuthForm />
           <p className="note">
             第一次玩？先看
             <Link className="text-link" to="/play">

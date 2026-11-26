@@ -562,6 +562,21 @@ export async function createApp({
       });
       return send(res, 200, view(user));
     }
+    if (url.pathname === '/api/admin/stations' && req.method === 'GET') {
+      if (!isAdmin(userFor(req))) fail(403, '此功能只開放系統管理員使用。');
+      // The printed station QR codes: each spot's secret code and its stamp link.
+      return send(
+        res,
+        200,
+        stampSpots.map(({ id, no, name }) => ({
+          id,
+          no,
+          name,
+          key: stampKeys[id],
+          url: `${origin}/stamp/${id}?k=${encodeURIComponent(stampKeys[id])}`,
+        })),
+      );
+    }
     if (url.pathname === '/api/admin/staff') {
       const admin = userFor(req);
       if (!isAdmin(admin)) fail(403, '此功能只開放系統管理員使用。');

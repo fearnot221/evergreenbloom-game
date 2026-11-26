@@ -2,7 +2,7 @@
 
 /* One line where it fits: the size follows the nearest container's width and the text's
    length (style={fitLine(text)}), between --fit-min and --fit-max; below the minimum it wraps.
-   Doubled class to win over the element's own font-size (.note, .task-prompt). */
+   Doubled class to win over the element's own font-size (.note, .stock-name). */
 .fit.fit {
   font-size: clamp(
     var(--fit-min, 0.8125rem),

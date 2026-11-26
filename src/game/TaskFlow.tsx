@@ -73,9 +73,7 @@ function Quiz({ spot, busy, submit, error }: Props) {
       }}
     >
       <fieldset disabled={busy}>
-        <legend className="task-prompt fit" style={fitLine(spot.prompt)}>
-          {spot.prompt}
-        </legend>
+        <legend className="task-prompt">{spot.prompt}</legend>
         {spot.options?.map((option, index) => (
           <label key={option} className="quiz-option">
             <input
@@ -128,7 +126,7 @@ function Fill({ spot, busy, submit, error }: Props) {
         if (answer.trim()) void submit(answer.trim());
       }}
     >
-      <label className="task-prompt fit" htmlFor="fill-answer" style={fitLine(spot.prompt)}>
+      <label className="task-prompt" htmlFor="fill-answer">
         {spot.prompt}
       </label>
       <input
@@ -195,9 +193,7 @@ function Photo({ spot, busy, submit, error }: Props) {
         }
       }}
     >
-      <p className="task-prompt fit" style={fitLine(spot.prompt)}>
-        {spot.prompt}
-      </p>
+      <p className="task-prompt">{spot.prompt}</p>
       <label className="button button-ghost photo-pick">
         {preview ? '重拍一張' : '打開相機拍照'}
         <input

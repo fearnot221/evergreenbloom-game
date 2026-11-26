@@ -6,7 +6,14 @@ export type Receipt = { id: string; redeemed_at: string; reviewer: string };
 /** One prize tier as the server sees it for this account. */
 export type PrizeState = { eligible: boolean; left: number; redemption: Receipt | null };
 export type GameState = {
-  user: { id: string; username: string; nickname: string | null; role: 'player' | 'staff' };
+  user: {
+    id: string;
+    username: string;
+    nickname: string | null;
+    role: 'player' | 'staff';
+    /** A Google sign-in that has not picked its account ID and nickname yet. */
+    setup: boolean;
+  };
   stamps: Record<string, string>;
   /** Shown once the account can redeem any prize; one code covers both tiers. */
   redeemCode: string | null;

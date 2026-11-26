@@ -8,7 +8,9 @@ HttpOnly cookie scoped to /api/auth/google, `next` limited to /, /game or /staff
 GET /api/auth/google/callback (code exchange with Google's token endpoint, ID-token
 iss/aud/exp checked, then the normal session cookie). Schema v3 adds
 `identities(provider, subject, user_id)`; a new subject creates a player with a random
-`g-…` username and password hash `!` (password login never matches). Only `sub` is
+`g-…` username and password hash `!` (password login never matches). Until that player
+picks an account ID and nickname (POST /api/profile, once, ID 8–16 letters or digits; `user.setup` in the state;
+`ProfileSetup`), player endpoints answer 403. Only `sub` is
 stored, `openid` scope only. No email-based linking to existing password accounts;
 staff stay on passwords. `AuthForm` shows the button when the provider is on and
 reports `?login=failed|cancelled`. Players set a display nickname (POST /api/nickname, ≤ 20 characters, NFKC, '' clears;

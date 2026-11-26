@@ -675,6 +675,28 @@ test('Google sign-in: state and PKCE checked, one player per Google subject, no 
   const cleared = await f.request('/api/nickname', { cookie: ok.cookie, data: { nickname: ' ' } });
   assert.equal(cleared.data.user.nickname, null);
 
+  // Until the player picks an account ID and nickname, the game stays closed.
+  assert.equal(me.user.setup, true);
+  const blocked = await f.request('/api/resolve', { cookie: ok.cookie, data: { key: 'x' } });
+  assert.equal(blocked.status, 403);
+  const profile = (data) => f.request('/api/profile', { cookie: ok.cookie, data });
+  assert.equal((await profile({ username: 'g-0123456789', nickname: '松果' })).status, 400);
+  for (const bad of ['pine-cone1', 'pine123', 'a'.repeat(17)])
+    assert.equal((await profile({ username: bad, nickname: '松果' })).status, 400);
+  assert.equal((await profile({ username: 'pinecone1', nickname: ' ' })).status, 400);
+  await f.request('/api/register', { data: { username: 'takenid123', password: secret } });
+  assert.equal((await profile({ username: 'takenid123', nickname: '松果' })).status, 409);
+  const set = await profile({ username: 'PineCone1', nickname: '松果' });
+  assert.equal(set.status, 200);
+  assert.deepEqual(
+    [set.data.user.username, set.data.user.nickname, set.data.user.setup],
+    ['pinecone1', '松果', false],
+  );
+  assert.equal(set.data.user.id, me.user.id);
+  assert.equal((await profile({ username: 'otherid12', nickname: 'x' })).status, 409);
+  const open = await f.request('/api/resolve', { cookie: ok.cookie, data: { key: 'x' } });
+  assert.notEqual(open.status, 403);
+
   // An open redirect is refused; a token for another client or an expired one fails.
   const d = await start('https://evil.example/');
   claims = { ...good, aud: 'other', exp: Date.now() / 1000 + 60 };

@@ -70,11 +70,7 @@ export default function PlayPage() {
   const spot = getSpot(claim?.spot ?? null);
 
   return (
-    <Page
-      title={display.pages.play}
-      lede={`第二屆松櫻祭的大地遊戲是走遍「新中大十景」的實景集章：掃 QR Code、玩關卡小遊戲、解鎖景點知識，集章換獎勵。用手機瀏覽器就能開始。`}
-      className="play"
-    >
+    <Page title={display.pages.play} className="play">
       {spot && claim ? (
         <section className="claim" aria-labelledby="claim-title">
           <h2 id="claim-title">待驗證集章點「{spot.name}」</h2>

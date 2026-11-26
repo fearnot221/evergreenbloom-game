@@ -8,10 +8,7 @@ const TITLE = '隱私權政策';
 export default function PrivacyPage() {
   useDocumentTitle(TITLE);
   return (
-    <Page
-      plainTitle={TITLE}
-      lede="本政策說明「松櫻祭集章」蒐集哪些資料、用在哪裡、保存多久。最後更新：2026 年 11 月 26 日。"
-    >
+    <Page plainTitle={TITLE}>
       <section aria-labelledby="privacy-data">
         <h2 id="privacy-data">蒐集的資料</h2>
         <ul className="rows dotted">
@@ -60,7 +57,7 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p className="note">
-          本政策如有修改，會更新本頁與最後更新日期。玩法說明請見
+          最後更新：2026 年 11 月 26 日。本政策如有修改，會更新本頁與最後更新日期。玩法說明請見
           <Link className="text-link" to="/play">
             遊戲玩法
           </Link>

@@ -159,11 +159,7 @@ export default function StaffPage() {
   };
 
   return (
-    <Page
-      plainTitle="兌獎核銷"
-      lede={`參加者集滿 ${prizes.meal.need} 個章可換${prizes.meal.name}，集滿 ${prizes.merch.need} 個章可換${prizes.merch.name}，各限量 ${prizes.meal.stock} 份。`}
-      className="game"
-    >
+    <Page plainTitle="兌獎核銷" className="game">
       <p className="quiz-error" role="alert">
         {account.error || error}
       </p>

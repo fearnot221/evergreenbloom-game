@@ -171,11 +171,6 @@
   font-weight: 900;
 }
 
-.page-lede {
-  max-width: 30em;
-  color: rgb(253 248 234 / 0.88);
-}
-
 /* The sakura bough: as tall as the band, anchored top-right, trimmed by its edges. */
 .head-sakura {
   position: absolute;

@@ -9,11 +9,7 @@ export default function RouteError() {
     document.title = `${display.pages.error} · 松櫻祭`;
   }, []);
   return (
-    <Page
-      title={display.pages.error}
-      lede="可能是連線中斷。請恢復連線後重新開啟。"
-      className="route-error"
-    >
+    <Page title={display.pages.error} className="route-error">
       <p className="actions">
         <a className="button" href={window.location.href}>
           重新載入

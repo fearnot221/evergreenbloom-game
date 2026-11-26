@@ -23,8 +23,10 @@ body {
   line-height: var(--leading-body);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* Below the head's cloud bank: the cloud ground, easing into blush by the footer. */
-  background: linear-gradient(180deg, var(--kv-ground) 40rem, var(--cloud) 70%, var(--blush));
+  /* Below the head's cloud bank: the cloud ground, easing into blush by the footer.
+     Measured from the bottom so the fade keeps the same gentle slope on any page
+     length; a top-anchored stop drew a line where short pages turned steeply. */
+  background: linear-gradient(0deg, var(--blush), var(--kv-ground) 40rem);
 }
 
 /* Print grain: one fixed layer over the whole screen, so density is even across the

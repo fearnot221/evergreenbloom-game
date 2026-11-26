@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /staff
+Disallow: /stats
+
+Sitemap: https://egb.snmg.cc/sitemap.xml

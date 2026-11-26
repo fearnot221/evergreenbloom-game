@@ -1,5 +1,15 @@
 # Festival Web App — architecture and implementation status
 
+## Search and sharing · 2026-11-27
+
+The site is now indexable (the `noindex` meta is gone). `index.html` carries the canonical
+URL, Open Graph and Twitter card tags with `public/og.png` (1200×630); `public/robots.txt`
+keeps crawlers out of `/api/`, `/staff` and `/stats` and points to `public/sitemap.xml`
+(/, /play, /map, /privacy). The server serves `.xml`. Titles: the home page is
+「國立中央大學松櫻祭集章遊戲」, other pages 「頁名｜國立中央大學松櫻祭集章遊戲」
+(`SITE_NAME`, `components/page.tsx`). Favicon: the NCU emblem. The production origin
+`https://egb.snmg.cc` is written into these static files; change them with the domain.
+
 ## Redeem code QR · 2026-11-26
 
 The stamp book shows the redeem code as a QR Code (`RedeemQr`, payload is the bare

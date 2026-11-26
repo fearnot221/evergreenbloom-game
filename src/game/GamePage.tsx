@@ -30,7 +30,8 @@ import './game.css';
 const REDEEM_NOTES = ['每個帳號唯一的兌獎碼・請勿分享', '兌獎時出示 QR Code 給工作人員掃描'];
 
 export default function GamePage() {
-  useDocumentTitle(display.pages.game);
+  // The home page: the site name alone.
+  useDocumentTitle('');
   const [params, setParams] = useSearchParams();
   const account = useAccount();
   useLiveStock(Boolean(account.data));

@@ -55,7 +55,9 @@ three task seals are static (their `seal-press` entrance was removed at the user
 request on 2026-11-26); 集章成功 uses CSS
 `seal-drop` / `seal-settle`, staggered `copy-rise`, and a CSS petal burst whose petals
 carry their own direction, spin and size as custom properties. Reduced motion: the burst
-and shower are hidden and other durations collapse (base.css). The v7 section below
+and shower are hidden and other durations collapse (base.css). The 3-stamp shower is a
+撒花: petals thrown up from both bottom corners (`shower-throw`), then swaying down
+(`shower-flutter`), 2026-11-27. The v7 section below
 describes the earlier GSAP version.
 
 ### v7 game motion (2026-11-09)

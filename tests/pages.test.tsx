@@ -44,6 +44,7 @@ describe('game app', () => {
   });
   it('gives every sakura-shower petal a valid fall time', () => {
     // An invalid duration falls back to 0s: the petals land at once and nothing shows.
-    for (const petal of showerPetals) expect(petal.animationDuration).toMatch(/^\d+\.\d{2}s$/);
+    for (const petal of showerPetals)
+      expect((petal as Record<string, string>)['--fall']).toMatch(/^\d+\.\d{2}s$/);
   });
 });

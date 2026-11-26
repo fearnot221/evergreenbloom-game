@@ -380,10 +380,13 @@ test('each prize stops at its stock of 100, even when the last ones are claimed 
   const insertReceipt = db.prepare(
     "INSERT INTO redemptions VALUES (?,?,'meal','2026-01-01','staff',6)",
   );
+  // One transaction: 98 separate fsyncs block this process (and its server) on slow disks.
+  db.exec('BEGIN');
   for (let i = 0; i < 98; i++) {
     insertUser.run(`seed-${i}`, `seed-${i}`, `SEED${String(i).padStart(20, '0')}`);
     insertReceipt.run(`r-${i}`, `seed-${i}`);
   }
+  db.exec('COMMIT');
   const codes = [];
   for (const name of ['racer0001', 'racer0002', 'racer0003']) {
     const player = await f.register(name);

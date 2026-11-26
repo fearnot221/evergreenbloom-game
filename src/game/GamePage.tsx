@@ -254,7 +254,8 @@ export default function GamePage() {
                       ? ['可以兌換了！', `剩餘 ${status.left} 份・先兌先得`]
                       : [
                           `還差 ${prize.need - count} 個章`,
-                          `限量 ${prize.stock} 份・剩餘 ${status.left} 份`,
+                          // Remaining / total.
+                          `剩餘 ${status.left}/${prize.stock} 份`,
                         ];
                 return (
                   <li

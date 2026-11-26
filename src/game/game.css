@@ -70,9 +70,11 @@
 
 .task-prompt {
   padding: 0;
-  /* Sized by .fit against the card; questions too long for one line wrap, balanced. */
-  --fit-max: var(--step-1);
-  text-wrap: balance;
+  /* A question is a sentence: full size, filling each line before it wraps. Shrinking
+     it to one line made long questions tiny, and balance split them into two half lines. */
+  font-size: var(--step-1);
+  line-height: 1.6;
+  text-wrap: pretty;
   font-weight: 800;
 }
 

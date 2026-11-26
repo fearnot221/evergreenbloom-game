@@ -53,6 +53,8 @@ async function fixture(t, extra = {}) {
     staffPassword: secret,
     stampKeys,
     staticDir: dir,
+    googleClientId: 'client.apps',
+    googleClientSecret: 'shh',
     ...extra,
   };
   let app;
@@ -99,13 +101,35 @@ async function fixture(t, extra = {}) {
       data: value,
     };
   };
+  /** A player signs in with Google (token endpoint stubbed), then picks `name` as its ID. */
   const register = async (name = 'participant') => {
-    const response = await request('/api/register', {
-      data: { username: name, password: secret, role: 'staff' },
+    const start = await request('/api/auth/google', { method: 'GET' });
+    const state = new URL(start.headers.get('location')).searchParams.get('state');
+    const realFetch = globalThis.fetch;
+    const claims = { iss: 'accounts.google.com', aud: options.googleClientId, sub: name };
+    globalThis.fetch = async (url, init) => {
+      if (String(url) !== 'https://oauth2.googleapis.com/token') return realFetch(url, init);
+      const part = Buffer.from(JSON.stringify({ ...claims, exp: Date.now() / 1000 + 60 }));
+      return Response.json({ id_token: `e30.${part.toString('base64url')}.sig` });
+    };
+    let signedIn;
+    try {
+      signedIn = await request(
+        `/api/auth/google/callback?${new URLSearchParams({ code: 'c', state })}`,
+        {
+          cookie: start.cookie,
+        },
+      );
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    const response = await request('/api/profile', {
+      cookie: signedIn.cookie,
+      data: { username: name, nickname: name, role: 'staff' },
     });
-    assert.equal(response.status, 201);
+    assert.equal(response.status, 200);
     assert.equal(response.data.user.role, 'player');
-    return response;
+    return { ...response, cookie: signedIn.cookie, headers: signedIn.headers };
   };
   const staff = async () => {
     const response = await request('/api/login', { data: { username: 'staff', password: secret } });
@@ -169,36 +193,31 @@ test('login binds server progress to a player, logout revokes the session, role 
   assert.match(player.headers.get('set-cookie'), /SameSite=Lax/);
   assert.equal(player.headers.get('cache-control'), 'no-store');
   assert.equal((await f.request('/api/staff/redemptions', { cookie: player.cookie })).status, 403);
+  // Players have no password route: registration is gone, and a player row never logs in
+  // with a password even if one were set on it.
   assert.equal(
-    (
-      await f.request('/api/login', {
-        data: { username: 'participant', password: 'wrong-password-1234' },
-      })
-    ).status,
-    401,
-  );
-  assert.equal(
-    (await f.request('/api/register', { data: { username: 'PARTICIPANT', password: secret } }))
+    (await f.request('/api/register', { data: { username: 'newplayer1', password: secret } }))
       .status,
-    409,
+    404,
   );
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  db.prepare(
+    "UPDATE users SET password_hash=(SELECT password_hash FROM users WHERE role='staff') WHERE username='participant'",
+  ).run();
   assert.equal(
-    (await f.request('/api/register', { data: { username: 'new-user', password: 'weak' } })).status,
-    400,
+    (await f.request('/api/login', { data: { username: 'participant', password: secret } })).status,
+    401,
   );
   assert.equal((await f.request('/api/logout', { cookie: player.cookie, data: {} })).status, 200);
   assert.equal((await f.request('/api/me', { cookie: player.cookie })).status, 401);
-  const login = await f.request('/api/login', {
-    data: { username: 'PARTICIPANT', password: secret },
-  });
-  assert.equal(login.data.user.id, player.data.user.id);
-  const db = new DatabaseSync(f.options.database);
-  t.after(() => db.close());
-  const row = db.prepare("SELECT password_hash FROM users WHERE username='participant'").get();
+  const login = await f.request('/api/login', { data: { username: 'STAFF', password: secret } });
+  assert.equal(login.data.user.role, 'staff');
+  const row = db.prepare("SELECT password_hash FROM users WHERE username='staff'").get();
   assert.notEqual(row.password_hash, secret);
   assert.match(row.password_hash, /^[a-f0-9]{32}:[a-f0-9]{128}$/);
   assert.notEqual(
-    db.prepare('SELECT token_hash FROM sessions WHERE user_id=?').get(player.data.user.id)
+    db.prepare('SELECT token_hash FROM sessions WHERE user_id=?').get(login.data.user.id)
       .token_hash,
     login.cookie.split('=')[1],
   );
@@ -209,8 +228,8 @@ test('same-origin checks, malformed and oversized bodies, unknown API and privat
   const player = await f.register();
   assert.equal(
     (
-      await f.request('/api/register', {
-        data: { username: 'forged', password: secret },
+      await f.request('/api/login', {
+        data: { username: 'staff', password: secret },
         headers: { Origin: 'https://evil.example' },
       })
     ).status,
@@ -234,7 +253,7 @@ test('same-origin checks, malformed and oversized bodies, unknown API and privat
   f.options.origin = 'https://game.example';
   await f.restart();
   const secure = await f.request('/api/login', {
-    data: { username: 'participant', password: secret },
+    data: { username: 'staff', password: secret },
     headers: { Origin: f.options.origin },
   });
   assert.equal(secure.status, 200);
@@ -257,7 +276,7 @@ test('same-origin checks, malformed and oversized bodies, unknown API and privat
 test('server checks codes, quiz and fill answers, deduplicates stamps and ignores forged user IDs', async (t) => {
   const f = await fixture(t);
   const player = await f.register();
-  const other = await f.register('other-user');
+  const other = await f.register('otheruser1');
   const cookie = player.cookie;
   const claim = (spot, data) => f.request(`/api/claims/${spot}`, { cookie, data });
   assert.equal((await f.request('/api/resolve', { cookie, data: { key: 'GATE-26' } })).status, 400);
@@ -375,7 +394,7 @@ test('each prize stops at its stock of 100, even when the last ones are claimed 
     insertReceipt.run(`r-${i}`, `seed-${i}`);
   }
   const codes = [];
-  for (const name of ['racer-a', 'racer-b', 'racer-c']) {
+  for (const name of ['racer0001', 'racer0002', 'racer0003']) {
     const player = await f.register(name);
     await f.collect(player.cookie, SPOTS.slice(0, 6));
     codes.push(db.prepare('SELECT redeem_code FROM users WHERE username=?').get(name).redeem_code);
@@ -425,7 +444,7 @@ test('a photo upload with consent earns the stamp at once and is kept; staff pic
   assert.match(image.headers.get('content-security-policy'), /sandbox/);
 
   // Picks: at most 3 per spot, reversible, visible to the player and at the desk.
-  for (const name of ['p-two', 'p-three', 'p-four']) {
+  for (const name of ['player002', 'player003', 'player004']) {
     const other = await f.register(name);
     await f.photo(other.cookie, 'tingsong');
   }
@@ -585,7 +604,7 @@ test('rate limits repeated login attempts and fails closed on unsafe deployment 
 });
 
 test('Google sign-in: state and PKCE checked, one player per Google subject, no email kept', async (t) => {
-  const off = await fixture(t);
+  const off = await fixture(t, { googleClientId: '' });
   assert.deepEqual((await off.request('/api/auth/providers')).data, { google: false });
   assert.equal((await off.request('/api/auth/google')).status, 404);
 
@@ -684,7 +703,7 @@ test('Google sign-in: state and PKCE checked, one player per Google subject, no 
   for (const bad of ['pine-cone1', 'pine123', 'a'.repeat(17)])
     assert.equal((await profile({ username: bad, nickname: '松果' })).status, 400);
   assert.equal((await profile({ username: 'pinecone1', nickname: ' ' })).status, 400);
-  await f.request('/api/register', { data: { username: 'takenid123', password: secret } });
+  await f.register('takenid123');
   assert.equal((await profile({ username: 'takenid123', nickname: '松果' })).status, 409);
   const set = await profile({ username: 'PineCone1', nickname: '松果' });
   assert.equal(set.status, 200);

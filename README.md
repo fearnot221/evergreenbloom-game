@@ -47,12 +47,13 @@ STAFF_PASSWORD 後重新建立容器，會更新密碼並撤銷該工作人員�
 更換 STAFF_USERNAME 會新增另一個工作人員，不會撤銷舊帳號的角色；撤銷或額外角色
 管理目前須由受信任的資料庫管理者處理。沒有公開提權 API。
 
-Google 登入（選用）：設定 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET（Google Cloud
+Google 登入（參加者唯一的登入方式，未設定時參加者無法登入）：設定 GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET（Google Cloud
 Console 建立「網頁應用程式」OAuth 用戶端，已授權的重新導向 URI 填
 `<APP_ORIGIN>/api/auth/google/callback`）後，登入表單會出現「使用 Google 登入」。
 伺服器端 authorization code 流程，含 state 與 PKCE，只要求 `openid` scope；
 `identities` 表以 Google `sub` 對應一個參加者帳號（隨機帳號名 `g-…`，無密碼），
-不保存 email 或姓名。不會依 email 自動合併既有的密碼帳號；工作人員仍用密碼登入。
+不保存 email 或姓名。參加者只能用 Google 登入（沒有註冊 API，密碼登入只接受工作人員），
+第一次登入須設定 8–16 位英數帳號 ID 與暱稱；工作人員仍用密碼登入。
 學校帳號 SSO 尚未串接，沒有自助找回密碼或 email 流程。不同帳號可能屬於同一個人；現階段限制的是
 **每個帳號一次**，不宣稱能辨識自然人。
 

@@ -12,7 +12,9 @@ iss/aud/exp checked, then the normal session cookie). Schema v3 adds
 picks an account ID and nickname (POST /api/profile, once, ID 8–16 letters or digits; `user.setup` in the state;
 `ProfileSetup`), player endpoints answer 403. Only `sub` is
 stored, `openid` scope only. No email-based linking to existing password accounts;
-staff stay on passwords. `AuthForm` shows the button when the provider is on and
+staff stay on passwords. Since 2026-11-26 players are Google-only: POST /api/register is
+removed and /api/login accepts staff rows only; `AuthForm` shows players just the Google
+button. `AuthForm` shows the button when the provider is on and
 reports `?login=failed|cancelled`. Players set a display nickname (POST /api/nickname, ≤ 20 characters, NFKC, '' clears;
 `users.nickname`, also added in v3) in `NicknameEditor`; it never changes the login
 username. `/privacy` (`src/pages/PrivacyPage.tsx`) is the
@@ -90,7 +92,7 @@ Offline task/prize submission never succeeds optimistically. The former device-l
 stamp store is ignored; accounts survive browser resets by logging in again.
 No per-natural-person deduplication, self-service password recovery, inventory or
 external SSO is claimed. See README.md for API/deployment/security boundaries.
-API inventory: POST /api/register, /api/login, /api/logout; GET /api/me;
+API inventory: POST /api/login (staff only), /api/logout; GET /api/me;
 POST /api/resolve; POST /api/claims/:spot (QR/quiz); POST /api/claims/:spot/photo
 (raw bounded image with X-Stamp-Key and X-Photo-Consent); staff-only GET /api/staff/photos,
 GET/POST /api/staff/photos/:id, POST /api/staff/lookup, POST /api/staff/redeem,

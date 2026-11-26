@@ -17,13 +17,12 @@ export default function PrivacyPage() {
         <ul className="rows dotted">
           <li>
             <strong>帳號：</strong>
-            以帳號密碼註冊時，保存帳號名稱與經雜湊處理的密碼（不保存密碼明碼）。
+            你第一次登入時設定的帳號 ID。參加者不設密碼；工作人員帳號的密碼經雜湊處理，不保存明碼。
           </li>
           <li>
             <strong>Google 登入：</strong>
             只向 Google 要求基本的身分識別（openid），只保存 Google 提供的帳號識別碼，用來讓同一個
-            Google 帳號登入同一個集章帳號。不保存 email、姓名或大頭貼，也不讀取其他 Google
-            資料。系統會為你產生隨機的帳號名稱。
+            Google 帳號登入同一個集章帳號。不保存 email、姓名或大頭貼，也不讀取其他 Google 資料。
           </li>
           <li>
             <strong>暱稱：</strong>你自行設定的暱稱，可隨時修改或清除。

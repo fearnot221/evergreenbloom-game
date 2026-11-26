@@ -261,6 +261,18 @@
 }
 
 /* Footer: a cloud bank, then back to the night sky ------------------------------- */
+/* Short pages still put the footer at the screen's bottom edge, so on phones it always
+   sits behind the fixed tab bar instead of floating above it. */
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.app > :has(+ .app-footer) {
+  flex-grow: 1;
+}
+
 .app-footer {
   position: relative;
   margin-top: var(--space-8);
@@ -336,10 +348,12 @@
   inline-size: 60%;
 }
 
-/* Phones: room for the tab bar, inside the purple footer, so nothing pink shows at the
-   bar's rounded corners. */
+/* Phones: room for the tab bar, in the bar's own colour and corners, so the footer and
+   the bar read as one band even when overscroll lifts the footer above it. */
 @media (max-width: 40rem) {
   .footer-body {
     block-size: calc(4.5rem + env(safe-area-inset-bottom));
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
+    background: rgb(52 50 124);
   }
 }

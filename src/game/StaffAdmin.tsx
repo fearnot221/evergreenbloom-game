@@ -47,9 +47,12 @@ export function StaffAdmin() {
             id="staff-id"
             value={id}
             onChange={(event) => setId(event.target.value)}
+            minLength={8}
+            pattern="[a-zA-Z0-9]{8,16}"
+            aria-describedby="staff-id-help"
             autoCapitalize="none"
             autoComplete="off"
-            maxLength={32}
+            maxLength={16}
             required
             disabled={busy}
           />
@@ -57,6 +60,9 @@ export function StaffAdmin() {
             加入
           </button>
         </div>
+        <p id="staff-id-help" className="note">
+          8 至 16 個英文字母或數字。
+        </p>
       </form>
       <p className="quiz-error" role="alert">
         {error}

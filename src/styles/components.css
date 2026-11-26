@@ -127,8 +127,12 @@ input[type="checkbox"] {
 
 .code-row input {
   flex: 1;
-  text-transform: uppercase;
   letter-spacing: 0.08em;
+}
+
+/* Station and redeem codes are upper case; account IDs (staff list) stay as typed. */
+.code-row input[autocapitalize="characters"] {
+  text-transform: uppercase;
 }
 
 /* Inline feedback: empty until there is something to say. */

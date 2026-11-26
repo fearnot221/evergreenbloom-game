@@ -46,9 +46,10 @@ class HttpError extends Error {
 const fail = (status, message) => {
   throw new HttpError(status, message);
 };
+/** The one account-ID rule: set at sign-up, looked up by the admin's staff list. */
 function username(value) {
-  if (typeof value !== 'string' || !/^[a-z0-9][a-z0-9._-]{2,31}$/i.test(value.trim()))
-    fail(400, '帳號須為 3 至 32 個英文字母、數字、點、底線或連字號。');
+  if (typeof value !== 'string' || !/^[a-z0-9]{8,16}$/i.test(value.trim()))
+    fail(400, '帳號 ID 須為 8 至 16 個英文字母或數字。');
   return value.trim().toLowerCase();
 }
 /** A display name the player chooses; '' clears it back to the account name. */
@@ -509,9 +510,7 @@ export async function createApp({
       if (!needsSetup(user)) fail(409, '帳號 ID 已設定，不能再更改。');
       const input = await jsonBody(req);
       // Stricter than password-account names; it also rules out the g-… placeholder.
-      if (typeof input.username !== 'string' || !/^[a-z0-9]{8,16}$/i.test(input.username.trim()))
-        fail(400, '帳號 ID 須為 8 至 16 個英文字母或數字。');
-      const name = input.username.trim().toLowerCase();
+      const name = username(input.username);
       const nick = nickname(input.nickname);
       if (!nick) fail(400, '請輸入暱稱。');
       transaction(() => {

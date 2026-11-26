@@ -7,6 +7,9 @@ code, black on white with a 4-module quiet zone). It encodes with `uqr` (0.1.3, 
 dependencies), loaded lazily only when a code exists. /staff reuses `QrScanner`
 (title, hint and no-camera text are props; the handler is kept in a ref so re-renders
 do not restart the camera) and looks the scanned code up at once; typing still works.
+Since 2026-11-27 every player sees their code from the start (a ticket card, 我的兌獎碼);
+eligibility is checked only at redemption. Best-photo picks (gallery list, images, picks)
+are limited to the admin and staff the admin marks as judges (`users.judge`).
 
 ## Google-only accounts and admin-managed staff · 2026-11-26
 
@@ -47,7 +50,8 @@ or codes). Answers: `server/app.mjs` (`QUIZ` option index; `FILL` text, NFKC-nor
 punctuation and spaces ignored, a short reply containing the answer counts). Schema v2:
 `redemptions` is one row per (user, tier) with stock counted inside the redeem
 transaction; `photos` keeps consented uploads (one per user and photo spot, ≤ 3 MB, type
-sniffed) with `picked_at`, at most 3 picked per spot inside a transaction. The v1→v2
+sniffed) with `picked_at`, at most 3 picked per spot inside a transaction, and
+`redeemed_at`/`redeemed_by` once its market voucher is handed out (a redeemed pick is locked). The v1→v2
 migration drops review-only v1 photos and renames v1 receipts to `redemptions_v1`. The
 client shrinks photos to ≤ 1600 px JPEG before upload. Routes: `/game` (TaskFlow,
 Progress, StampReveal intro → stamp), `/map` (StampMap over `src/data/campus-map.json`,
@@ -117,6 +121,7 @@ API inventory (2026-11-26: plus Google auth, /api/profile, /api/nickname,
 POST /api/resolve; POST /api/claims/:spot (QR/quiz); POST /api/claims/:spot/photo
 (raw bounded image with X-Stamp-Key and X-Photo-Consent); staff-only GET /api/staff/photos,
 GET/POST /api/staff/photos/:id, POST /api/staff/lookup, POST /api/staff/redeem,
+POST /api/staff/redeem-photo,
 GET /api/staff/redemptions. All writes require APP_ORIGIN; staff privileges come
 from the database on each request. Sessions expire in seven days. Bootstrap password
 rotation revokes prior staff sessions. SQLite WAL, foreign keys, FULL synchronous

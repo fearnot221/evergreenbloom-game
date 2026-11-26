@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { fitLine } from '../components/fit';
 import { MapTrifoldIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import { display } from '../data/display-copy';
@@ -12,7 +13,7 @@ import {
   stampSpots,
 } from '../data/stamps';
 import { AuthForm } from './AuthForm';
-import { ApiError, api, type GameState, savedTime, useAccount } from './api';
+import { ApiError, api, type GameState, shortTime, useAccount, useLiveStock } from './api';
 import { NicknameEditor } from './NicknameEditor';
 import { ProfileSetup } from './ProfileSetup';
 import { Progress, reached } from './Progress';
@@ -25,14 +26,20 @@ import { TaskFlow } from './TaskFlow';
 import '../styles/pages.css';
 import './game.css';
 
+/** Under the code: it is this account's alone, and how it is used. */
+const REDEEM_NOTES = ['每個帳號唯一的兌獎碼・請勿分享', '兌獎時出示 QR Code 給工作人員掃描'];
+
 export default function GamePage() {
   useDocumentTitle(display.pages.game);
   const [params, setParams] = useSearchParams();
   const account = useAccount();
+  useLiveStock(Boolean(account.data));
   const [active, setActive] = useState<Claim | null>(null);
   const [revealed, setRevealed] = useState<StampSpot | null>(null);
   const [opened, setOpened] = useState<StampSpot | null>(null);
-  const [milestone, setMilestone] = useState<ReturnType<typeof reached>>(null);
+  const [milestone, setMilestone] = useState<
+    (NonNullable<ReturnType<typeof reached>> & { soldOut: boolean }) | null
+  >(null);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
@@ -134,7 +141,14 @@ export default function GamePage() {
                         body: photo,
                       })
                     : await api<GameState>(`/claims/${spot.id}`, { key: active.key, answer });
-                  setMilestone(reached(count, Object.keys(updated.stamps).length));
+                  const stop = reached(count, Object.keys(updated.stamps).length);
+                  // The prize may already be gone: stock is counted by the server at redemption.
+                  setMilestone(
+                    stop && {
+                      ...stop,
+                      soldOut: stop.tier ? updated.prizes[stop.tier].left <= 0 : false,
+                    },
+                  );
                   account.setData(updated);
                   setActive(null);
                   setParams({}, { replace: true });
@@ -231,6 +245,17 @@ export default function GamePage() {
               {prizeTiers.map((tier) => {
                 const prize = prizes[tier];
                 const status = state.prizes[tier];
+                // Status first, then the live stock on its own line.
+                const lines = status.redemption
+                  ? [`已兌換：${shortTime(status.redemption.redeemed_at)}`]
+                  : status.left <= 0
+                    ? ['已全數兌換完畢']
+                    : status.eligible
+                      ? ['可以兌換了！', `剩餘 ${status.left} 份・先兌先得`]
+                      : [
+                          `還差 ${prize.need - count} 個章`,
+                          `限量 ${prize.stock} 份・剩餘 ${status.left} 份`,
+                        ];
                 return (
                   <li
                     key={tier}
@@ -239,30 +264,38 @@ export default function GamePage() {
                     <p className="prize-need latin">{prize.need}</p>
                     <div>
                       <h3>{prize.name}</h3>
-                      <p className="note">
-                        {status.redemption
-                          ? `已兌換：${savedTime(status.redemption.redeemed_at)}（台北時間）`
-                          : status.left <= 0
-                            ? '已全數兌換完畢'
-                            : status.eligible
-                              ? `可以兌換了！剩餘 ${status.left} 份，先兌先得`
-                              : `還差 ${prize.need - count} 個章・限量 ${prize.stock} 份`}
-                      </p>
+                      {lines.map((line) => (
+                        <p key={line} className="note fit" style={fitLine(line)}>
+                          {line}
+                        </p>
+                      ))}
                     </div>
                   </li>
                 );
               })}
+              {stampSpots
+                .filter((item) => state.photos[item.id]?.picked)
+                .map((item) => {
+                  const redeemed = state.photos[item.id].redeemed_at;
+                  const note = redeemed ? `已兌換：${shortTime(redeemed)}` : '可以兌換市集餐券了！';
+                  return (
+                    <li key={item.id} className={`prize-card is-open${redeemed ? ' is-done' : ''}`}>
+                      <p className="prize-need latin">佳</p>
+                      <div>
+                        <h3>{item.name}佳作</h3>
+                        <p className="note fit" style={fitLine(note)}>
+                          {note}
+                        </p>
+                      </div>
+                    </li>
+                  );
+                })}
             </ul>
-            {stampSpots
-              .filter((item) => state.photos[item.id]?.picked)
-              .map((item) => (
-                <p key={item.id} className="claim">
-                  你在「{item.name}」拍的照片獲選佳作！憑兌獎碼到兌獎處領取活動市集餐券。
-                </p>
-              ))}
-            {state.redeemCode ? (
-              <>
-                <label htmlFor="redeem-code">兌獎碼・到兌獎處出示 QR Code 給工作人員掃描</label>
+            {state.redeemCode && (
+              <div className="redeem-card">
+                <label htmlFor="redeem-code" className="redeem-kicker">
+                  我的兌獎碼
+                </label>
                 <RedeemQr code={state.redeemCode} />
                 <input
                   id="redeem-code"
@@ -270,9 +303,12 @@ export default function GamePage() {
                   readOnly
                   className="receipt-code"
                 />
-              </>
-            ) : (
-              <p className="note">集滿 {prizes.meal.need} 個章後，這裡會出現兌獎碼。</p>
+                {REDEEM_NOTES.map((line) => (
+                  <p key={line} className="note fit" style={fitLine(line)}>
+                    {line}
+                  </p>
+                ))}
+              </div>
             )}
           </section>
         </>

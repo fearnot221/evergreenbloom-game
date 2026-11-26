@@ -1,5 +1,17 @@
 /* Shared components: buttons, links, fields, rows, the stamp dialog, petal burst. */
 
+/* One line where it fits: the size follows the nearest container's width and the text's
+   length (style={fitLine(text)}), between --fit-min and --fit-max; below the minimum it wraps.
+   Doubled class to win over the element's own font-size (.note, .task-prompt). */
+.fit.fit {
+  font-size: clamp(
+    var(--fit-min, 0.8125rem),
+    (100cqi - var(--fit-inset, 0rem)) /
+    var(--chars),
+    var(--fit-max, 1rem)
+  );
+}
+
 /* Buttons: sticker pills with an ink edge that press down. ---------------------- */
 .button {
   display: inline-flex;
@@ -166,6 +178,11 @@ input[type="checkbox"] {
   overflow: clip;
 }
 
+/* The dialog takes focus so screen readers start at it; its buttons keep their ring. */
+.stamp-reveal:focus-visible {
+  outline: none;
+}
+
 .stamp-reveal::backdrop {
   background: var(--scrim);
 }
@@ -203,6 +220,12 @@ input[type="checkbox"] {
 
 .reveal-copy h2 {
   font-size: var(--step-3);
+}
+
+/* Lines fill the box and both edges meet the padding, so the left and right gaps match. */
+.reveal-intro {
+  text-align: justify;
+  text-wrap: wrap;
 }
 
 .petal-burst {
@@ -304,17 +327,19 @@ input[type="checkbox"] {
 }
 
 .reveal-milestone {
-  padding: var(--space-2) var(--space-4);
-  border-radius: 999px;
+  display: grid;
+  padding: var(--space-3) var(--space-5);
+  border-radius: var(--radius-m);
   background: var(--star);
   color: var(--ink);
   font-weight: 800;
 }
 
-/* 集滿 3 個章: petals fall across the whole screen (fixed inside the top-layer dialog). */
+/* 集滿 3 個章: after 收進集章冊, petals fall across the whole page, over the tab bar. */
 .sakura-shower {
   position: fixed;
   inset: 0;
+  z-index: 80;
   overflow: hidden;
   pointer-events: none;
 }

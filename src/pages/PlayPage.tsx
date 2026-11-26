@@ -1,4 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
+import { fitLine } from '../components/fit';
 import { ArrowUpRightIcon, MapTrifoldIcon } from '../components/icons';
 import { Page, useDocumentTitle } from '../components/page';
 import { display } from '../data/display-copy';
@@ -140,8 +141,8 @@ export default function PlayPage() {
                 <span className="display spot-seal cone" aria-hidden="true">
                   {display.flows.seals[item.method]}
                 </span>
-                <span>
-                  <span className="spot-name">
+                <span className="spot-text">
+                  <span className="spot-name fit" style={fitLine(`${item.no} ${item.name}`)}>
                     <span className="latin stamp-no">{item.no}</span>
                     {item.name}
                   </span>
@@ -172,7 +173,7 @@ export default function PlayPage() {
           ))}
         </ol>
         <ul className="rows dotted">
-          <li>集章冊出現兌獎碼後，到兌獎處出示，由工作人員核銷領取。</li>
+          <li>集章冊上有你專屬的兌獎碼，集滿章後到兌獎處出示，由工作人員核銷領取。</li>
           <li>兩樣獎品都可以領，每樣每人限一次；先兌先得，兌完為止。</li>
           <li>
             拍照關卡另有佳作獎：主辦單位會從每個拍照關卡選出 3
@@ -210,7 +211,11 @@ export default function PlayPage() {
         <div className="faq">
           {faq.map((item) => (
             <details key={item.q}>
-              <summary>{item.q}</summary>
+              <summary>
+                <span className="fit" style={fitLine(item.q)}>
+                  {item.q}
+                </span>
+              </summary>
               <p>{item.a}</p>
             </details>
           ))}

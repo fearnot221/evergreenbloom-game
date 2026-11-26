@@ -1,9 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { fitLine } from '../components/fit';
 import { Page, useDocumentTitle } from '../components/page';
 import { display } from '../data/display-copy';
 import { type PrizeTier, prizes, prizeTiers, stampSpots } from '../data/stamps';
 import { AuthForm } from './AuthForm';
-import { ApiError, api, type PrizeState, savedTime, useAccount } from './api';
+import {
+  ApiError,
+  api,
+  type PrizeState,
+  quietRefresh,
+  savedTime,
+  shortTime,
+  useAccount,
+  useLiveStock,
+} from './api';
 import { ProfileSetup } from './ProfileSetup';
 import { QrScanner } from './QrScanner';
 import { StaffAdmin } from './StaffAdmin';
@@ -15,8 +25,8 @@ type Lookup = {
   username: string;
   count: number;
   prizes: Record<PrizeTier, PrizeState>;
-  /** Photo spots where this player's photo was picked (a market meal voucher each). */
-  picked: string[];
+  /** This player's picked photos: a market meal voucher each, handed out once. */
+  picked: { spot: string; redeemed_at: string | null; reviewer: string | null }[];
 };
 type Photo = { id: string; username: string; submitted_at: string; picked: boolean };
 const photoSpots = stampSpots.filter((spot) => spot.method === 'photo');
@@ -105,13 +115,44 @@ function Gallery() {
     </section>
   );
 }
+/** After a handout: a modal so the desk cannot miss it; 確定 or Escape closes it. */
+function Redeemed({ prize, onClose }: { prize: string | null; onClose: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (prize && !dialog.current?.open) dialog.current?.showModal();
+  }, [prize]);
+  return (
+    <dialog
+      ref={dialog}
+      className="stamp-reveal"
+      aria-labelledby="redeemed-title"
+      onClose={onClose}
+    >
+      {prize && (
+        <div className="reveal-copy">
+          <p className="reveal-kicker">兌換完成</p>
+          <h2 id="redeemed-title">{prize}</h2>
+          <p>已記錄兌換，請勿重複發放。</p>
+          <form method="dialog">
+            <button type="submit" className="button">
+              確定
+            </button>
+          </form>
+        </div>
+      )}
+    </dialog>
+  );
+}
+
 type Row = {
   id: string;
   username: string;
-  tier: PrizeTier;
+  /** A prize tier, or 'photo' for a best-photo voucher (then `spot` names the spot). */
+  tier: PrizeTier | 'photo';
+  spot: string | null;
   redeemed_at: string;
   reviewer: string;
-  stamp_count: number;
+  stamp_count: number | null;
 };
 
 export default function StaffPage() {
@@ -123,10 +164,12 @@ export default function StaffPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const [redeemed, setRedeemed] = useState<string | null>(null);
   const refresh = useCallback(async () => {
     setRecords(await api<Row[]>('/staff/redemptions'));
   }, []);
   const role = account.data?.user.role;
+  useLiveStock(role === 'staff');
   useEffect(() => {
     if (role === 'staff') refresh().catch((error) => setError(error.message));
     else {
@@ -190,6 +233,24 @@ export default function StaffPage() {
             <p>此帳號沒有工作人員權限，請系統管理員把你的帳號 ID 加入工作人員名單。</p>
           ) : (
             <>
+              <section aria-labelledby="stock-title">
+                <h2 id="stock-title">剩餘份數</h2>
+                <ul className="stock-list">
+                  {prizeTiers.map((tier) => {
+                    const left = account.data?.prizes[tier].left ?? 0;
+                    return (
+                      <li key={tier} className={`stock${left <= 0 ? ' is-out' : ''}`}>
+                        <span className="stock-name fit" style={fitLine(prizes[tier].name)}>
+                          {prizes[tier].name}
+                        </span>
+                        <span className="latin stock-left">{left}</span>
+                        <span className="note">剩餘・共 {prizes[tier].stock} 份</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <p className="note">每 30 秒自動更新，兌換後立即更新。</p>
+              </section>
               <section aria-labelledby="redeem-title">
                 <h2 id="redeem-title">查詢兌獎碼</h2>
                 <QrScanner
@@ -231,36 +292,32 @@ export default function StaffPage() {
                 </form>
                 {lookup && (
                   <div className="lookup">
+                    <p>參加者帳號：{lookup.username}</p>
                     <p>
-                      參加者帳號：{lookup.username}・已集 {lookup.count} / {stampSpots.length} 個章
+                      已集 {lookup.count} / {stampSpots.length} 個章
                     </p>
-                    {lookup.picked.length > 0 && (
-                      <p className="claim">
-                        照片佳作：
-                        {lookup.picked
-                          .map((id) => stampSpots.find((item) => item.id === id)?.name)
-                          .join('、')}
-                        ，每項發放一張活動市集餐券。
-                      </p>
-                    )}
                     <ul className="prize-list">
                       {prizeTiers.map((tier) => {
                         const prize = prizes[tier];
                         const status = lookup.prizes[tier];
+                        const note = status.redemption
+                          ? `已兌換 ${shortTime(status.redemption.redeemed_at)}`
+                          : !status.eligible
+                            ? `尚未集滿 ${prize.need} 個章`
+                            : status.left <= 0
+                              ? '已全數兌換完畢'
+                              : `可兌換・剩餘 ${status.left} 份`;
                         return (
                           <li key={tier} className="prize-card is-open">
                             <p className="prize-need latin">{prize.need}</p>
                             <div>
                               <h3>{prize.name}</h3>
-                              <p className="note">
-                                {status.redemption
-                                  ? `已兌換：${savedTime(status.redemption.redeemed_at)}，核銷：${status.redemption.reviewer}`
-                                  : !status.eligible
-                                    ? `尚未集滿 ${prize.need} 個章`
-                                    : status.left <= 0
-                                      ? '已全數兌換完畢'
-                                      : `可兌換・剩餘 ${status.left} 份`}
+                              <p className="note fit" style={fitLine(note)}>
+                                {note}
                               </p>
+                              {status.redemption && (
+                                <p className="note">核銷：{status.redemption.reviewer}</p>
+                              )}
                               <button
                                 className="button"
                                 type="button"
@@ -273,25 +330,66 @@ export default function StaffPage() {
                                 onClick={() =>
                                   void run(async () => {
                                     await api('/staff/redeem', { code: normalized, tier });
-                                    setNotice(`已記錄兌換${prize.name}，請勿重複發放。`);
+                                    setRedeemed(prize.name);
                                     await find();
                                     await refresh();
+                                    void quietRefresh();
                                   })
                                 }
                               >
-                                發放{prize.name}並記錄
+                                {status.redemption ? '已兌換' : '確認兌換'}
                               </button>
                             </div>
                           </li>
                         );
                       })}
+                      {lookup.picked.map((photo) => (
+                        <li key={photo.spot} className="prize-card is-open">
+                          <p className="prize-need latin">佳</p>
+                          <div>
+                            <h3>{stampSpots.find((item) => item.id === photo.spot)?.name}佳作</h3>
+                            <p
+                              className="note fit"
+                              style={fitLine(
+                                photo.redeemed_at
+                                  ? `已兌換 ${shortTime(photo.redeemed_at)}`
+                                  : '可兌換市集餐券',
+                              )}
+                            >
+                              {photo.redeemed_at
+                                ? `已兌換 ${shortTime(photo.redeemed_at)}`
+                                : '可兌換市集餐券'}
+                            </p>
+                            {photo.redeemed_at && <p className="note">核銷：{photo.reviewer}</p>}
+                            <button
+                              className="button"
+                              type="button"
+                              disabled={busy || !!photo.redeemed_at}
+                              onClick={() =>
+                                void run(async () => {
+                                  await api('/staff/redeem-photo', {
+                                    code: normalized,
+                                    spot: photo.spot,
+                                  });
+                                  setRedeemed(
+                                    `${stampSpots.find((item) => item.id === photo.spot)?.name}佳作`,
+                                  );
+                                  await find();
+                                })
+                              }
+                            >
+                              {photo.redeemed_at ? '已兌換' : '確認兌換'}
+                            </button>
+                          </div>
+                        </li>
+                      ))}
                     </ul>
                   </div>
                 )}
               </section>
               {account.data.user.admin && <StaffAdmin />}
               {account.data.user.admin && <StationCodes />}
-              <Gallery />
+              {account.data.user.judge && <Gallery />}
               <section aria-labelledby="records-title">
                 <div className="book-head">
                   <h2 id="records-title">最近 100 筆兌獎紀錄</h2>
@@ -309,13 +407,17 @@ export default function StaffPage() {
                   {records.map((record) => (
                     <li key={record.id}>
                       <h3>
-                        {record.username}・{prizes[record.tier].name}
+                        {record.tier === 'photo'
+                          ? `${stampSpots.find((item) => item.id === record.spot)?.name}佳作`
+                          : prizes[record.tier].name}
                       </h3>
-                      <p>
-                        {savedTime(record.redeemed_at)}（台北時間）・核銷帳號：{record.reviewer}
-                      </p>
+                      <p>兌換帳號：{record.username}</p>
+                      <p>{savedTime(record.redeemed_at)}</p>
+                      <p>核銷帳號：{record.reviewer}</p>
                       <p className="note">
-                        編號：{record.id}・兌換時 {record.stamp_count} 個章
+                        {/* The first 8 of the UUID: enough to find the row, short to read out. */}
+                        編號 {record.id.slice(0, 8).toUpperCase()}
+                        {record.stamp_count !== null && `・兌換時 ${record.stamp_count} 個章`}
                       </p>
                     </li>
                   ))}
@@ -325,6 +427,7 @@ export default function StaffPage() {
           )}
         </>
       )}
+      <Redeemed prize={redeemed} onClose={() => setRedeemed(null)} />
     </Page>
   );
 }

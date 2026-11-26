@@ -62,6 +62,13 @@ product identity takes precedence over stylistic novelty.
 - Preserve readability at 200% zoom and text enlargement. Avoid tiny muted labels.
 - Choose fonts for brand fit, language coverage, readability, licensing, and load cost.
   Do not replace an established font just because a skill discourages its popularity.
+- Short UI lines stay on one line (adopted 2026-11-27): labels, questions, answers,
+  prize-card notes, spot names and FAQ questions use `.fit` with `style={fitLine(text)}`
+  (`src/components/fit.ts`). The size follows the nearest size container (`cqi`) and the
+  text's length between `--fit-min` (13px; 11–12px in narrow cards) and `--fit-max`; below
+  the minimum it wraps. Checked clean from 360px; at 320px some lines wrap at the minimum.
+  Body paragraphs wrap normally. Stamp-tile names under the seals are too long for their
+  ~51px tiles and still wrap.
 
 ## Color principles
 

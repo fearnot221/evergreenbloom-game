@@ -75,6 +75,16 @@
     box-shadow: 0 -0.5rem 1.5rem rgb(28 26 74 / 0.3);
   }
 
+  /* iOS Safari's floating toolbar sits below a bottom-0 bar while the page scrolls
+     under both; carry the bar's colour down so no content shows beneath it. */
+  .app-nav::after {
+    content: "";
+    position: absolute;
+    inset: 100% 0 auto;
+    block-size: 50vh;
+    background: inherit;
+  }
+
   .app-nav a {
     flex-direction: column;
     gap: 0.125rem;

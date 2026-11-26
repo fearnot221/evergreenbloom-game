@@ -12,7 +12,6 @@ import {
   savedTime,
   shortTime,
   useAccount,
-  useLiveStock,
 } from './api';
 import { ProfileSetup } from './ProfileSetup';
 import { QrScanner } from './QrScanner';
@@ -169,7 +168,6 @@ export default function StaffPage() {
     setRecords(await api<Row[]>('/staff/redemptions'));
   }, []);
   const role = account.data?.user.role;
-  useLiveStock(role === 'staff');
   useEffect(() => {
     if (role === 'staff') refresh().catch((error) => setError(error.message));
     else {
@@ -192,8 +190,11 @@ export default function StaffPage() {
     }
   };
   const normalized = code.trim().toUpperCase();
-  const find = async (value = normalized) =>
+  // Every lookup (scan or typed, and the re-read after a handout) also re-reads the stock.
+  const find = async (value = normalized) => {
     setLookup(await api<Lookup>('/staff/lookup', { code: value }));
+    void quietRefresh();
+  };
   /** A scanned player QR Code holds just the redeem code: look it up straight away. */
   const onScan = (text: string) => {
     const value = text.trim().toUpperCase();
@@ -249,7 +250,7 @@ export default function StaffPage() {
                     );
                   })}
                 </ul>
-                <p className="note">每 30 秒自動更新，兌換後立即更新。</p>
+                <p className="note">查詢兌獎碼或兌換後更新。</p>
               </section>
               <section aria-labelledby="redeem-title">
                 <h2 id="redeem-title">查詢兌獎碼</h2>
@@ -333,7 +334,6 @@ export default function StaffPage() {
                                     setRedeemed(prize.name);
                                     await find();
                                     await refresh();
-                                    void quietRefresh();
                                   })
                                 }
                               >

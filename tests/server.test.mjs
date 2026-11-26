@@ -538,6 +538,9 @@ test('expired sessions are rejected; the admin alone manages staff, and changes 
   assert.equal((await list(member.cookie)).status, 403);
   assert.equal((await set('member001', true, member.cookie)).status, 403);
   assert.equal((await set('nobody123', true)).status, 404);
+  // The same ID rule as sign-up: 8 to 16 letters or digits.
+  for (const bad of ['ab', 'has.dot1', 'way-too-long-id-x'])
+    assert.equal((await set(bad, true)).data.error, '帳號 ID 須為 8 至 16 個英文字母或數字。');
   assert.equal((await set('admin0001', false)).status, 400);
   assert.deepEqual((await set('MEMBER001', true)).data, [
     { username: 'member001', nickname: 'member001', judge: false },

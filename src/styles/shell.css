@@ -155,11 +155,6 @@
   letter-spacing: 0.08em;
 }
 
-.eyebrow-bloom {
-  inline-size: 1.1rem;
-  color: var(--blush);
-}
-
 .page-title {
   max-width: 12em;
   font-size: clamp(2.2rem, 1.4rem + 3.6vw, 4rem);
@@ -195,12 +190,8 @@
   pointer-events: none;
 }
 
-/* Phones: a smaller bough lifted into the top corner; the title starts below it. */
+/* Phones: a smaller bough lifted into the top corner, beside the title. */
 @media (max-width: 40rem) {
-  .head-inner {
-    padding-top: 5.5rem;
-  }
-
   /* The bough grows up through the header (only the logo sits there on phones), so
      the band clips its sides and bottom but not its top. */
   .page-head {

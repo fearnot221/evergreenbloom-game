@@ -81,16 +81,7 @@ export default function GamePage() {
   const onScan = useCallback((text: string) => scanned.current(text), []);
 
   return (
-    <Page
-      title={display.pages.game}
-      lede={
-        state
-          ? '掃描集章點的 QR Code 開始任務，集章與兌獎以伺服器紀錄為準。'
-          : '登入帳號，保存你的集章與兌獎紀錄。'
-      }
-      aside={player && <Progress count={count} />}
-      className="game"
-    >
+    <Page title={display.pages.game} aside={player && <Progress count={count} />} className="game">
       <p className="quiz-error" role="alert">
         {account.error || error}
       </p>

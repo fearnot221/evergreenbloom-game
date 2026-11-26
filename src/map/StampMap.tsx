@@ -60,11 +60,7 @@ export default function StampMap() {
   }, [selected]);
 
   return (
-    <Page
-      title={display.pages.stampMap}
-      lede="新中大十景分布在校園各處。點地標看景點介紹與它的任務，到現場掃描 QR Code 就能集章。"
-      className="stamp-map-page"
-    >
+    <Page title={display.pages.stampMap} className="stamp-map-page">
       <section aria-labelledby="map-title">
         <h2 id="map-title" className="sr-only">
           校園集章地圖

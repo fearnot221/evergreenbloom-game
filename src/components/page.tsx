@@ -33,7 +33,7 @@ export function useDocumentTitle(title: string) {
 
 /**
  * Page layout: a compact night-sky title band, then the content sheet. The band reads
- * left to right like an app screen title (eyebrow, title, lede); a sakura bough
+ * left to right like an app screen title (eyebrow, title); a sakura bough
  * (Sakura.tsx) grows in from the top-right corner and a cloud edge closes the band.
  * `title` must come from display-copy so the display subset covers it; dynamic titles
  * use `plainTitle` and the body face. `aside` sits beside the title on wide screens.
@@ -41,14 +41,12 @@ export function useDocumentTitle(title: string) {
 export function Page({
   title,
   plainTitle,
-  lede,
   aside,
   className = '',
   children,
 }: {
   title?: string;
   plainTitle?: string;
-  lede?: ReactNode;
   aside?: ReactNode;
   className?: string;
   children: ReactNode;
@@ -62,7 +60,6 @@ export function Page({
           <h1 className={title ? 'display page-title' : 'page-title is-plain'}>
             {title ?? plainTitle}
           </h1>
-          {lede && <p className="page-lede">{lede}</p>}
           {aside}
         </div>
         <div className="head-edge" aria-hidden="true">

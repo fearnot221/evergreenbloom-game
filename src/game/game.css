@@ -478,11 +478,20 @@
 }
 
 .sheet input.receipt-code {
-  font-size: var(--step-2);
+  /* All 24 characters stay visible on a narrow phone. */
+  font-size: min(var(--step-2), 3.8vw);
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.06em;
   text-align: center;
   background: var(--star);
+}
+
+/* Redeem code QR: white quiet zone is part of the SVG. */
+.redeem-qr {
+  display: block;
+  width: min(15rem, 100%);
+  height: auto;
+  border-radius: var(--radius-m);
 }
 
 /* Staff */

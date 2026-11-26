@@ -4,6 +4,7 @@ import { type PrizeTier, prizes, prizeTiers, stampSpots } from '../data/stamps';
 import { AuthForm } from './AuthForm';
 import { ApiError, api, type PrizeState, savedTime, useAccount } from './api';
 import { ProfileSetup } from './ProfileSetup';
+import { QrScanner } from './QrScanner';
 import { StaffAdmin } from './StaffAdmin';
 import '../styles/pages.css';
 import './game.css';
@@ -146,7 +147,15 @@ export default function StaffPage() {
     }
   };
   const normalized = code.trim().toUpperCase();
-  const find = async () => setLookup(await api<Lookup>('/staff/lookup', { code: normalized }));
+  const find = async (value = normalized) =>
+    setLookup(await api<Lookup>('/staff/lookup', { code: value }));
+  /** A scanned player QR Code holds just the redeem code: look it up straight away. */
+  const onScan = (text: string) => {
+    const value = text.trim().toUpperCase();
+    setCode(value);
+    setLookup(null);
+    void run(() => find(value));
+  };
 
   return (
     <Page
@@ -185,11 +194,17 @@ export default function StaffPage() {
             <>
               <section aria-labelledby="redeem-title">
                 <h2 id="redeem-title">查詢兌獎碼</h2>
+                <QrScanner
+                  onScan={onScan}
+                  title="掃描兌獎碼"
+                  hint="把參加者集章冊上的兌獎 QR Code 對準框內。"
+                  fallback="這個瀏覽器無法開啟相機，請關閉這個視窗，輸入參加者出示的兌獎碼。"
+                />
                 <form
                   className="code-entry"
                   onSubmit={(event) => {
                     event.preventDefault();
-                    void run(find);
+                    void run(() => find());
                   }}
                 >
                   <label htmlFor="staff-code">參加者出示的兌獎碼</label>

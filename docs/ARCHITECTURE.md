@@ -1,5 +1,13 @@
 # Festival Web App — architecture and implementation status
 
+## Redeem code QR · 2026-11-26
+
+The stamp book shows the redeem code as a QR Code (`RedeemQr`, payload is the bare
+code, black on white with a 4-module quiet zone). It encodes with `uqr` (0.1.3, MIT, no
+dependencies), loaded lazily only when a code exists. /staff reuses `QrScanner`
+(title, hint and no-camera text are props; the handler is kept in a ref so re-renders
+do not restart the camera) and looks the scanned code up at once; typing still works.
+
 ## Google-only accounts and admin-managed staff · 2026-11-26
 
 All password sign-in is gone: no POST /api/register or /api/login, no STAFF_USERNAME /

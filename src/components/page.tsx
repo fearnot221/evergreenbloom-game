@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect } from 'react';
 import { poster } from '../data/poster-copy';
-import { BloomMark, Cloud } from './motifs';
+import { Cloud } from './motifs';
 import { Sakura } from './Sakura';
 
 /**
@@ -58,10 +58,7 @@ export function Page({
       <header className="page-head">
         <Sakura className="head-sakura" />
         <div className="head-inner">
-          <p className="head-eyebrow">
-            <BloomMark className="eyebrow-bloom" />
-            {poster.school} · 第二屆松櫻祭
-          </p>
+          <p className="head-eyebrow">{`${poster.school}${poster.wordmark}`}</p>
           <h1 className={title ? 'display page-title' : 'page-title is-plain'}>
             {title ?? plainTitle}
           </h1>

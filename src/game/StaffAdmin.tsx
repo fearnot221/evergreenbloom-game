@@ -68,14 +68,19 @@ export function StaffAdmin() {
         {error}
       </p>
       {members.length === 0 && <p>名單中還沒有工作人員。</p>}
-      <ul className="rows">
+      <ul className="member-list">
         {members.map((member) => (
-          <li key={member.username} className="book-head">
-            <span>
-              {member.nickname ? `${member.nickname}（${member.username}）` : member.username}
-              {member.judge && '・評審'}
+          <li key={member.username} className="member">
+            <div className="member-who">
+              <span className="member-name">{member.nickname || member.username}</span>
+              {member.nickname && member.nickname !== member.username && (
+                <span className="note">ID：{member.username}</span>
+              )}
+            </div>
+            <span className={`member-role${member.judge ? ' is-judge' : ''}`}>
+              {member.judge ? '評審' : '工作人員'}
             </span>
-            <span className="actions">
+            <div className="member-actions">
               <button
                 className="button button-ghost"
                 type="button"
@@ -93,7 +98,7 @@ export function StaffAdmin() {
               >
                 移除
               </button>
-            </span>
+            </div>
           </li>
         ))}
       </ul>

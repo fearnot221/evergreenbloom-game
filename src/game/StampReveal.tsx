@@ -4,9 +4,15 @@ import { PetalBurst } from '../components/PetalBurst';
 import { display } from '../data/display-copy';
 import { SHOWER_AT, type StampSpot } from '../data/stamps';
 
-const SHOWER = 28;
 /** The last petal lands by 2.4s delay + 5.2s fall; then the shower is removed. */
 const SHOWER_MS = 7800;
+/** 28 petals spread across the page, each with its own start and fall time. */
+export const showerPetals = Array.from({ length: 28 }, (_, i) => ({
+  left: `${(i * 37) % 100}%`,
+  animationDelay: `${((i * 0.29) % 2.4).toFixed(2)}s`,
+  // Round the sum: 3.2 + '0.41' would concatenate into an invalid '3.20.41s'.
+  animationDuration: `${(3.2 + ((i * 0.41) % 2)).toFixed(2)}s`,
+}));
 
 /**
  * After a task: first the spot's knowledge, then 集章成功 (the seal presses down and
@@ -97,16 +103,9 @@ export function StampReveal({
       </dialog>
       {showering && (
         <div className="sakura-shower" aria-hidden="true">
-          {Array.from({ length: SHOWER }, (_, i) => (
-            <Petal
-              // biome-ignore lint/suspicious/noArrayIndexKey: identical decorative petals.
-              key={i}
-              style={{
-                left: `${(i * 37) % 100}%`,
-                animationDelay: `${((i * 0.29) % 2.4).toFixed(2)}s`,
-                animationDuration: `${3.2 + ((i * 0.41) % 2).toFixed(2)}s`,
-              }}
-            />
+          {showerPetals.map((style, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: identical decorative petals.
+            <Petal key={i} style={style} />
           ))}
         </div>
       )}

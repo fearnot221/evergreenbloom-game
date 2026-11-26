@@ -10,5 +10,6 @@ describe('navigation', () => {
     expect(html).toContain('href="/"');
     expect(html).toContain('href="/map"');
     expect(html).not.toContain('href="/staff"');
+    expect(html).not.toContain('href="/stats"');
   });
 });

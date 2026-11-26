@@ -7,6 +7,7 @@ export {
   CalendarDotsIcon,
   CameraIcon,
   CaretDownIcon,
+  ChartBarIcon,
   CheckIcon,
   CompassIcon,
   DotsNineIcon,

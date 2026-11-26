@@ -16,8 +16,8 @@ const SESSION_AGE = 7 * 24 * 60 * 60;
 const COOKIE = 'songying-session';
 const OAUTH_COOKIE = 'songying-oauth';
 const GOOGLE_ISSUERS = ['https://accounts.google.com', 'accounts.google.com'];
-/** Where a Google sign-in may return to: the stamp book or staff page, with its query. */
-const RETURN_PATH = /^\/(?:game|staff)?(?:\?[\w=&%.~-]{0,300})?$/;
+/** Where a Google sign-in may return to: the stamp book or a staff page, with its query. */
+const RETURN_PATH = /^\/(?:game|staff|stats)?(?:\?[\w=&%.~-]{0,300})?$/;
 const PUBLIC_SPOTS = new Set(stampSpots.map((spot) => spot.id));
 // Server-only answers. Quiz: the correct option's index. Fill: accepted text, compared
 // after normalize(); a reply that contains it ("陳其寬校友") also counts.
@@ -748,6 +748,66 @@ export async function createApp({
         });
         return send(res, 201, receipt);
       }
+      if (url.pathname === '/api/staff/stats' && req.method === 'GET') {
+        // Players only: staff accounts and the admin do not collect stamps.
+        const players = "users.role='player' AND users.username<>?";
+        const count = (sql, ...args) => db.prepare(sql).get(...args).n;
+        const spots = [...PUBLIC_SPOTS];
+        const inSpots = `spot_id IN (${spots.map(() => '?').join(',')})`;
+        const stampsBySpot = Object.fromEntries(
+          db
+            .prepare(
+              `SELECT spot_id,count(*) AS n FROM stamps JOIN users ON users.id=stamps.user_id WHERE ${players} AND ${inSpots} GROUP BY spot_id`,
+            )
+            .all(adminName, ...spots)
+            .map((row) => [row.spot_id, row.n]),
+        );
+        // How many players hold 0, 1, … all stamps.
+        const held = new Array(spots.length + 1).fill(0);
+        for (const row of db
+          .prepare(
+            `SELECT (SELECT count(*) FROM stamps WHERE user_id=users.id AND ${inSpots}) AS n FROM users WHERE ${players}`,
+          )
+          .all(...spots, adminName))
+          held[row.n]++;
+        return send(res, 200, {
+          players: count(`SELECT count(*) AS n FROM users WHERE ${players}`, adminName),
+          // Google sign-ins that have not picked their account ID yet.
+          pending: count(
+            `SELECT count(*) AS n FROM users WHERE ${players} AND password_hash='!' AND username GLOB 'g-??????????'`,
+            adminName,
+          ),
+          staff: count("SELECT count(*) AS n FROM users WHERE role='staff'"),
+          // Dates in Taiwan time (UTC+8), so a day matches the festival's day.
+          signups: db
+            .prepare(
+              `SELECT date(created_at,'+8 hours') AS day,count(*) AS n FROM users WHERE ${players} GROUP BY day ORDER BY day`,
+            )
+            .all(adminName),
+          stampsPerDay: db
+            .prepare(
+              `SELECT date(earned_at,'+8 hours') AS day,count(*) AS n FROM stamps JOIN users ON users.id=stamps.user_id WHERE ${players} AND ${inSpots} GROUP BY day ORDER BY day`,
+            )
+            .all(adminName, ...spots),
+          spots: stampSpots.map(({ id }) => ({
+            id,
+            stamps: stampsBySpot[id] ?? 0,
+            photos: count('SELECT count(*) AS n FROM photos WHERE spot_id=?', id),
+            picked: count(
+              'SELECT count(*) AS n FROM photos WHERE spot_id=? AND picked_at IS NOT NULL',
+              id,
+            ),
+          })),
+          held,
+          prizes: Object.fromEntries(
+            prizeTiers.map((tier) => [
+              tier,
+              count('SELECT count(*) AS n FROM redemptions WHERE tier=?', tier),
+            ]),
+          ),
+          vouchers: count('SELECT count(*) AS n FROM photos WHERE redeemed_at IS NOT NULL'),
+        });
+      }
       if (url.pathname === '/api/staff/redemptions' && req.method === 'GET')
         return send(
           res,
@@ -803,7 +863,7 @@ export async function createApp({
       } catch {}
       if (!info?.isFile()) {
         if (
-          !/^\/(?:game|map|play|staff|privacy)?\/?$/.test(decoded) &&
+          !/^\/(?:game|map|play|staff|stats|privacy)?\/?$/.test(decoded) &&
           !/^\/stamp\/[a-z-]+\/?$/.test(decoded)
         )
           fail(404, '找不到檔案。');

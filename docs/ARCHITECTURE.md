@@ -27,7 +27,7 @@ it right after deploying.
 
 The only sign-in, on when GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are set. `server/app.mjs`:
 GET /api/auth/providers (`{google}`), GET /api/auth/google (state + PKCE in a 10-minute
-HttpOnly cookie scoped to /api/auth/google, `next` limited to /, /game or /staff),
+HttpOnly cookie scoped to /api/auth/google, `next` limited to /, /game, /staff or /stats),
 GET /api/auth/google/callback (code exchange with Google's token endpoint, ID-token
 iss/aud/exp checked, then the normal session cookie). Schema v3 adds
 `identities(provider, subject, user_id)`; a new subject creates a player with a random
@@ -122,7 +122,8 @@ POST /api/resolve; POST /api/claims/:spot (QR/quiz); POST /api/claims/:spot/phot
 (raw bounded image with X-Stamp-Key and X-Photo-Consent); staff-only GET /api/staff/photos,
 GET/POST /api/staff/photos/:id, POST /api/staff/lookup, POST /api/staff/redeem,
 POST /api/staff/redeem-photo,
-GET /api/staff/redemptions. All writes require APP_ORIGIN; staff privileges come
+GET /api/staff/redemptions, GET /api/staff/stats (KPI counts for the staff-only /stats page;
+players exclude staff and the admin, days in UTC+8). All writes require APP_ORIGIN; staff privileges come
 from the database on each request. Sessions expire in seven days. Bootstrap password
 rotation revokes prior staff sessions. SQLite WAL, foreign keys, FULL synchronous
 writes and explicit transactions protect committed progress and redemption records.

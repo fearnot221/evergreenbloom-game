@@ -34,6 +34,7 @@ export const routes: RouteObject[] = [
           { path: 'game', loader: ({ request }) => redirect(`/${new URL(request.url).search}`) },
           { path: 'map', lazy: page(() => import('../map/StampMap')) },
           { path: 'staff', lazy: page(() => import('../game/StaffPage')) },
+          { path: 'stats', lazy: page(() => import('../game/StatsPage')) },
           { path: 'privacy', lazy: page(() => import('../pages/PrivacyPage')) },
           // QR codes on site point here: /stamp/<spot>?k=<key>; the stamp book takes the claim.
           {

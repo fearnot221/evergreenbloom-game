@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { fitLine } from '../components/fit';
 import { Page, useDocumentTitle } from '../components/page';
 import { display } from '../data/display-copy';
@@ -217,6 +218,11 @@ export default function StaffPage() {
         <>
           <div className="actions account-bar">
             <span className="account-name">目前帳號：{account.data.user.username}</span>
+            {role === 'staff' && (
+              <Link className="text-link" to="/stats">
+                活動數據
+              </Link>
+            )}
             <button
               className="button button-ghost"
               type="button"

@@ -788,3 +788,44 @@ test('Google sign-in: state and PKCE checked, one player per Google subject, no 
     '/?login=failed',
   );
 });
+
+test('staff stats: players, per-spot stamps, photos and handouts; staff only', async (t) => {
+  const f = await fixture(t);
+  const first = await f.register('player0001');
+  const second = await f.register('player0002');
+  const staff = await f.staff();
+  assert.equal((await f.request('/api/staff/stats', { cookie: first.cookie })).status, 403);
+  await f.collect(first.cookie, SPOTS.slice(0, 6));
+  await f.collect(second.cookie, SPOTS.slice(0, 2));
+  const db = new DatabaseSync(f.options.database);
+  t.after(() => db.close());
+  const { redeem_code: code } = db
+    .prepare('SELECT redeem_code FROM users WHERE id=?')
+    .get(first.data.user.id);
+  assert.equal(
+    (await f.request('/api/staff/redeem', { cookie: staff, data: { code, tier: 'meal' } })).status,
+    201,
+  );
+  const stats = (await f.request('/api/staff/stats', { cookie: staff })).data;
+  // The admin and the staff member are not players.
+  assert.equal(stats.players, 2);
+  assert.equal(stats.pending, 0);
+  assert.equal(stats.staff, 1);
+  assert.equal(
+    stats.signups.reduce((sum, row) => sum + row.n, 0),
+    2,
+  );
+  assert.equal(
+    stats.stampsPerDay.reduce((sum, row) => sum + row.n, 0),
+    8,
+  );
+  const spot = Object.fromEntries(stats.spots.map((row) => [row.id, row]));
+  assert.equal(spot['zhongda-road'].stamps, 2);
+  assert.equal(spot.baihua.stamps, 1);
+  assert.equal(spot.taichi.stamps, 0);
+  assert.deepEqual([spot.tingsong.photos, spot.tingsong.picked], [2, 0]);
+  assert.equal(stats.held[6], 1);
+  assert.equal(stats.held[2], 1);
+  assert.deepEqual(stats.prizes, { meal: 1, merch: 0 });
+  assert.equal(stats.vouchers, 0);
+});

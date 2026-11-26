@@ -6,7 +6,17 @@ describe('game routes', () => {
     const paths = routes[0].children?.[0].children?.map((route) =>
       route.index ? '/' : route.path,
     );
-    expect(paths).toEqual(['/', 'play', 'game', 'map', 'staff', 'privacy', 'stamp/:spot', '*']);
+    expect(paths).toEqual([
+      '/',
+      'play',
+      'game',
+      'map',
+      'staff',
+      'stats',
+      'privacy',
+      'stamp/:spot',
+      '*',
+    ]);
   });
   it('forwards a QR claim straight to the stamp book', async () => {
     const route = routes[0].children?.[0].children?.find((route) => route.path === 'stamp/:spot');

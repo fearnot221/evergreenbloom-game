@@ -495,6 +495,29 @@
 }
 
 /* Staff */
+.station-code {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.station-code .redeem-qr {
+  width: 7rem;
+}
+
+.station-code .receipt-code {
+  margin: 0;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  overflow-wrap: anywhere;
+}
+
+.station-url {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
 .lookup {
   display: grid;
   gap: var(--space-3);
@@ -572,9 +595,18 @@
 
 /* Staff: photo spots as tabs, photos as a picking grid. */
 .tabs {
-  display: flex;
-  flex-wrap: wrap;
+  /* Always one row: equal columns that shrink with the screen, never wrap. */
+  display: grid;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
   gap: var(--space-2);
+}
+
+.tabs .button {
+  min-width: 0;
+  padding-inline: var(--space-2);
+  font-size: min(1rem, 4vw);
+  white-space: nowrap;
 }
 
 .gallery {

@@ -516,6 +516,15 @@ test('expired sessions are rejected; the admin alone manages staff, and changes 
   ]);
   assert.equal((await f.request('/api/staff/redemptions', { cookie: member.cookie })).status, 200);
   assert.equal((await list(member.cookie)).status, 403);
+  // Station codes are for the admin only, not for staff.
+  const stations = (cookie) => f.request('/api/admin/stations', { cookie });
+  assert.equal((await stations(member.cookie)).status, 403);
+  assert.equal((await stations('')).status, 401);
+  const codes = (await stations(admin.cookie)).data;
+  assert.equal(codes.length, Object.keys(stampKeys).length);
+  const road = codes.find((item) => item.id === 'zhongda-road');
+  assert.equal(road.key, stampKeys['zhongda-road']);
+  assert.equal(road.url, `${origin}/stamp/zhongda-road?k=${stampKeys['zhongda-road']}`);
   assert.equal(
     (await f.request('/api/resolve', { cookie: member.cookie, data: { key: 'x' } })).status,
     403,

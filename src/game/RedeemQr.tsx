@@ -4,7 +4,13 @@ import { useEffect, useState } from 'react';
  * The redeem code as a QR Code for the staff scanner. The encoder loads only when a
  * code exists; dark modules are drawn as one path, black on white for any scanner.
  */
-export function RedeemQr({ code }: { code: string }) {
+export function RedeemQr({
+  code,
+  label = `兌獎碼 ${code} 的 QR Code`,
+}: {
+  code: string;
+  label?: string;
+}) {
   const [path, setPath] = useState<{ size: number; d: string } | null>(null);
   useEffect(() => {
     let live = true;
@@ -29,7 +35,7 @@ export function RedeemQr({ code }: { code: string }) {
       viewBox={`0 0 ${path.size} ${path.size}`}
       shapeRendering="crispEdges"
       role="img"
-      aria-label={`兌獎碼 ${code} 的 QR Code`}
+      aria-label={label}
     >
       <rect width={path.size} height={path.size} fill="#fff" />
       <path d={path.d} fill="#000" />

@@ -16,7 +16,8 @@ STAFF_PASSWORD; startup revokes sessions of old password rows. ADMIN_USERNAME (d
 staff (`roleOf`), `user.admin` is true, and it manages the staff list on /staff
 (`StaffAdmin`; GET/POST /api/admin/staff `{username, staff}`), which sets `users.role`.
 Only set-up Google accounts can be added; roles are read per request, so changes apply
-at once. An unclaimed admin ID goes to whoever sets it first, so the admin should claim
+at once. The admin alone also sees each spot's station code and stamp link with its
+QR Code (`StationCodes`, GET /api/admin/stations). An unclaimed admin ID goes to whoever sets it first, so the admin should claim
 it right after deploying.
 
 ## Google sign-in · 2026-11-26

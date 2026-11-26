@@ -6,6 +6,7 @@ import { ApiError, api, type PrizeState, savedTime, useAccount } from './api';
 import { ProfileSetup } from './ProfileSetup';
 import { QrScanner } from './QrScanner';
 import { StaffAdmin } from './StaffAdmin';
+import { StationCodes } from './StationCodes';
 import '../styles/pages.css';
 import './game.css';
 
@@ -292,6 +293,7 @@ export default function StaffPage() {
                 )}
               </section>
               {account.data.user.admin && <StaffAdmin />}
+              {account.data.user.admin && <StationCodes />}
               <Gallery />
               <section aria-labelledby="records-title">
                 <div className="book-head">

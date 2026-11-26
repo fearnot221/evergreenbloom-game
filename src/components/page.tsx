@@ -25,9 +25,12 @@ const EDGE = [
   'wide',
 ] as const;
 
+/** The site's name; the home page uses it alone, other pages as 「頁名｜站名」. */
+export const SITE_NAME = '國立中央大學松櫻祭集章遊戲';
+
 export function useDocumentTitle(title: string) {
   useEffect(() => {
-    document.title = title ? `${title} · 松櫻祭` : '松櫻祭 · 實景集章';
+    document.title = title ? `${title}｜${SITE_NAME}` : SITE_NAME;
   }, [title]);
 }
 

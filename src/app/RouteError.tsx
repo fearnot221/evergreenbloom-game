@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { Page } from '../components/page';
+import { Page, SITE_NAME } from '../components/page';
 import { display } from '../data/display-copy';
 import '../styles/pages.css';
 
 /** Shown when a route chunk fails to load (connection lost) or a page throws. */
 export default function RouteError() {
   useEffect(() => {
-    document.title = `${display.pages.error} · 松櫻祭`;
+    document.title = `${display.pages.error}｜${SITE_NAME}`;
   }, []);
   return (
     <Page title={display.pages.error} className="route-error">

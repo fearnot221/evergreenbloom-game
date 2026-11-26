@@ -38,7 +38,9 @@ app layout that uses the elements where they have a job.
 | 遊戲玩法 | Sections in order: 集章流程, 三種任務, 新中大十景, 集章獎勵, 拍照與隱私, 常見問題. The ten spots are link cards (seal, number and name, task), two across on phones and five by two on wide screens, each opening the spot on the map; sign-in is one FAQ entry, and the FAQ only answers what the sections above do not | `pages/PlayPage.tsx`, `pages.css` |
 | Footer | Decorative only, no text (2026-11-25): cloud tops and a star above a rounded night-sky strip with grain, which on phones sits behind the tab bar; the website link lives in the nav (活動官網) | `App.tsx`, `shell.css` |
 
-**Not drawn.** The NCU logo is left out. The festival's squirrel mascot is not used in the
+**Not drawn.** The NCU logo is not drawn into the UI; at the user's request (2026-11-27) the
+NCU emblem is the favicon and apple-touch icon and appears on the share thumbnail
+(`public/og.png`, rendered once from site colours, not built at deploy). The festival's squirrel mascot is not used in the
 game (removed 2026-11-26).
 
 ## Design direction

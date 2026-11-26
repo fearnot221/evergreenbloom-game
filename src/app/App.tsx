@@ -1,6 +1,7 @@
 import { Link, NavLink, Outlet, ScrollRestoration } from 'react-router-dom';
 import {
   ArrowUpRightIcon,
+  ChartBarIcon,
   IdentificationBadgeIcon,
   InfoIcon,
   MapTrifoldIcon,
@@ -46,6 +47,12 @@ export default function App() {
             <NavLink to="/staff">
               <IdentificationBadgeIcon size={20} aria-hidden="true" />
               工作人員
+            </NavLink>
+          )}
+          {staff && (
+            <NavLink to="/stats">
+              <ChartBarIcon size={20} aria-hidden="true" />
+              活動數據
             </NavLink>
           )}
           <a href={websiteHref()}>

@@ -518,26 +518,6 @@ export async function createApp({
       res.setHeader('Set-Cookie', [res.getHeader('Set-Cookie'), oauthCookie('', 0)]);
       return redirect(res, next);
     }
-    if (url.pathname === '/api/register' && req.method === 'POST') {
-      limited(`auth:${ip}`, 300);
-      const input = await jsonBody(req);
-      const name = username(input.username);
-      const secret = password(input.password);
-      if (db.prepare('SELECT id FROM users WHERE username=?').get(name))
-        fail(409, '此帳號已有人使用。');
-      const hash = await passwordHash(secret);
-      const id = randomUUID();
-      transaction(() => {
-        // Concurrent registrations are serialized by the unique username constraint.
-        if (db.prepare('SELECT id FROM users WHERE username=?').get(name))
-          fail(409, '此帳號已有人使用。');
-        db.prepare(
-          'INSERT INTO users (id,username,password_hash,role,redeem_code,created_at) VALUES (?,?,?,?,?,?)',
-        ).run(id, name, hash, 'player', randomBytes(12).toString('hex').toUpperCase(), date());
-        issueSession(res, id);
-      });
-      return send(res, 201, view(db.prepare('SELECT * FROM users WHERE id=?').get(id)));
-    }
     if (url.pathname === '/api/login' && req.method === 'POST') {
       limited(`auth:${ip}`, 300);
       const input = await jsonBody(req);
@@ -546,7 +526,8 @@ export async function createApp({
       limited(`login:${sha(name)}`, 15);
       const user = db.prepare('SELECT * FROM users WHERE username=?').get(name);
       const matches = await passwordMatches(secret, user?.password_hash ?? dummyHash);
-      if (!user || !matches) fail(401, '帳號或密碼錯誤。');
+      // Players sign in with Google only; passwords are for staff.
+      if (!user || !matches || user.role !== 'staff') fail(401, '帳號或密碼錯誤。');
       issueSession(res, user.id);
       return send(res, 200, view(user));
     }

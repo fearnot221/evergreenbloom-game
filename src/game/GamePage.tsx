@@ -19,7 +19,7 @@ import { ProfileSetup } from './ProfileSetup';
 import { Progress, reached } from './Progress';
 import { QrScanner } from './QrScanner';
 import { RedeemQr } from './RedeemQr';
-import { SpotSheet } from './SpotSheet';
+import { Sheet, SpotSheet } from './SpotSheet';
 import { StampReveal } from './StampReveal';
 import { type Claim, readClaim, readScan } from './stamp-store';
 import { TaskFlow } from './TaskFlow';
@@ -68,8 +68,8 @@ export default function GamePage() {
     try {
       const key = value.trim().toUpperCase();
       const found = await api<{ spot: string }>('/resolve', { key });
-      if (collected[found.spot]) setNotice('這個章已集過了。');
-      else setActive({ spot: found.spot, key });
+      // An already collected spot opens the 已集過 popup below.
+      setActive({ spot: found.spot, key });
       setCode('');
     } catch (problem) {
       failed(problem);
@@ -87,6 +87,12 @@ export default function GamePage() {
     else void resolveCode(result.code);
   };
   const onScan = useCallback((text: string) => scanned.current(text), []);
+  /** A scanned or typed spot that is already in the book: told in a popup, not inline. */
+  const repeat = player && spot && active && collected[spot.id] ? spot : null;
+  const closeRepeat = () => {
+    setActive(null);
+    setParams({}, { replace: true });
+  };
 
   return (
     <Page title={display.pages.game} aside={player && <Progress count={count} />} className="game">
@@ -164,9 +170,6 @@ export default function GamePage() {
                 }
               }}
             />
-          )}
-          {spot && active && collected[spot.id] && (
-            <p className="status">「{spot.name}」已經集過章了，換下一個集章點吧。</p>
           )}
           {!(spot && active && !collected[spot.id]) && <QrScanner onScan={onScan} />}
           <details className="code-more">
@@ -346,6 +349,24 @@ export default function GamePage() {
         </div>
       )}
       <p className="note">集章與兌獎需要連線。換手機或清除瀏覽器資料後，登入同一個帳號就能繼續。</p>
+      <Sheet
+        open={Boolean(repeat)}
+        onClose={closeRepeat}
+        seal={
+          repeat && (
+            <span className="display sheet-seal cone is-done" aria-hidden="true">
+              {repeat.name.slice(0, 2)}
+            </span>
+          )
+        }
+        kicker={repeat && `第 ${repeat.no} 景`}
+        title={repeat?.name ?? ''}
+      >
+        <p>這個章已經集過了，換下一個集章點吧。</p>
+        <button type="button" className="button" onClick={closeRepeat}>
+          知道了
+        </button>
+      </Sheet>
       <SpotSheet
         spot={opened}
         done={Boolean(opened && collected[opened.id])}

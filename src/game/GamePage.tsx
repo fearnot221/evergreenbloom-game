@@ -17,6 +17,7 @@ import { NicknameEditor } from './NicknameEditor';
 import { ProfileSetup } from './ProfileSetup';
 import { Progress, reached } from './Progress';
 import { QrScanner } from './QrScanner';
+import { RedeemQr } from './RedeemQr';
 import { SpotSheet } from './SpotSheet';
 import { StampReveal } from './StampReveal';
 import { type Claim, readClaim, readScan } from './stamp-store';
@@ -270,7 +271,8 @@ export default function GamePage() {
               ))}
             {state.redeemCode ? (
               <>
-                <label htmlFor="redeem-code">兌獎碼・到兌獎處出示給工作人員</label>
+                <label htmlFor="redeem-code">兌獎碼・到兌獎處出示 QR Code 給工作人員掃描</label>
+                <RedeemQr code={state.redeemCode} />
                 <input
                   id="redeem-code"
                   value={state.redeemCode}

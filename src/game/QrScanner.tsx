@@ -48,12 +48,26 @@ async function scriptReader(): Promise<Reader> {
  * hands the text back. Without camera access (not HTTPS, or refused) the dialog points
  * to the phone's camera app or the printed code.
  */
-export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
+export function QrScanner({
+  onScan,
+  title = '掃描集章牌',
+  hint = '把集章牌上的 QR Code 對準框內。',
+  fallback = '這個瀏覽器無法開啟相機。請打開手機內建的相機掃描集章牌上的 QR Code，會直接開啟這個集章點；也可以關閉這個視窗，輸入 QR Code 下方的代碼。',
+}: {
+  onScan: (text: string) => void;
+  title?: string;
+  hint?: string;
+  /** Shown when the browser has no camera access at all. */
+  fallback?: string;
+}) {
   const dialog = useRef<HTMLDialogElement>(null);
   const video = useRef<HTMLVideoElement>(null);
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState('');
   const supported = typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getUserMedia;
+  // The latest handler, without restarting the camera when the parent re-renders.
+  const handler = useRef(onScan);
+  handler.current = onScan;
 
   useEffect(() => {
     if (!open || !supported) return;
@@ -67,7 +81,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
         const text = await read(video.current);
         if (text && !stopped) {
           dialog.current?.close();
-          onScan(text);
+          handler.current(text);
           return;
         }
       } catch {
@@ -89,7 +103,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
         video.current.srcObject = media;
         await video.current.play();
         read = 'BarcodeDetector' in window ? nativeReader() : await scriptReader();
-        setMessage('把集章牌上的 QR Code 對準框內。');
+        setMessage(hint);
         void scan();
       })
       .catch(() => setMessage('無法開啟相機。請在瀏覽器設定允許使用相機，或改用下方輸入代碼。'));
@@ -98,7 +112,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
       window.clearTimeout(timer);
       for (const track of stream?.getTracks() ?? []) track.stop();
     };
-  }, [open, supported, onScan]);
+  }, [open, supported, hint]);
 
   return (
     <>
@@ -120,7 +134,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
         onClose={() => setOpen(false)}
       >
         <div className="scanner-head">
-          <h2 id="scanner-title">掃描集章牌</h2>
+          <h2 id="scanner-title">{title}</h2>
           <form method="dialog">
             <button type="submit" className="scanner-close" aria-label="關閉掃描">
               <XIcon size={22} weight="bold" aria-hidden="true" />
@@ -137,10 +151,7 @@ export function QrScanner({ onScan }: { onScan: (text: string) => void }) {
             <p role="status">{open ? message : ''}</p>
           </>
         ) : (
-          <p>
-            這個瀏覽器無法開啟相機。請打開手機內建的相機掃描集章牌上的 QR
-            Code，會直接開啟這個集章點；也可以關閉這個視窗，輸入 QR Code 下方的代碼。
-          </p>
+          <p>{fallback}</p>
         )}
       </dialog>
     </>
